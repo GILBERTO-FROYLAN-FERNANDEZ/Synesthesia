@@ -553,3 +553,47 @@
     padding: var(--space-3) var(--space-3) var(--space-5);
   }
 }
+
+.liveGrid {
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    'header header'
+    'stage panel';
+}
+
+.liveGrid h1 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+
+.liveGrid header p {
+  flex: 1;
+  margin: 0;
+  color: var(--color-mist);
+}
+
+.liveCamera {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  width: min(24%, 180px);
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  background: var(--color-surround);
+  border: 1px solid var(--color-silt);
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .liveStudio .liveGrid {
+    position: static;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    grid-template-areas: 'header' 'stage' 'panel';
+  }
+
+  .liveStudio .header {
+    flex-wrap: wrap;
+  }
+}
