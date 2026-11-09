@@ -83,17 +83,12 @@ function SpeedSlider({ disabled }: { disabled?: boolean }) {
 // ---------------------------------------------------------------------------------------
 // Before a clip is open
 
-export function EmptyPanel({ onFiles }: { onFiles: (files: File[]) => void }) {
-  const opening = usePrepareStore((s) => s.status === 'opening');
+export function EmptyPanel() {
   const notice = usePrepareStore((s) => s.notice);
   const setNotice = usePrepareStore((s) => s.setNotice);
   return (
     <div className={styles.panelBody}>
-      <Section title="Clip">
-        <p>Bring in a short clip of a movement: a wink, a hand in water, a curtain in the wind.</p>
-        <FileButton variant="primary" accept={CLIP_ACCEPT} onFiles={onFiles} disabled={opening}>
-          Choose a clip…
-        </FileButton>
+      <Section title="Working with a clip">
         <p className={styles.help}>
           MP4, MOV or WebM. A signature holds up to a minute of movement.
         </p>

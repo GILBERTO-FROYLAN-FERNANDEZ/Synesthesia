@@ -20,6 +20,7 @@ import {
 import { CLIP_FORMAT_MESSAGE, EXTRACTION_FAILED_MESSAGE } from '../../signature/extractProtocol';
 import { useLibraryStore } from '../../state/libraryStore';
 import { extractionOptions, usePrepareStore } from '../../state/prepareStore';
+import { Button } from '../../ui/Button';
 import { GuideLink } from '../../ui/GuideLink';
 import { centeredRect, type NormRect } from '../../ui/rectMath';
 import type { SliderPhase } from '../../ui/Slider';
@@ -74,6 +75,59 @@ function technicalDetail(error: unknown): string {
   return error instanceof Error ? `${error.name}: ${error.message}${detail}` : String(error);
 }
 
+function WebcamPreview({ onStop }: { onStop: () => void }) {
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const previewRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const preview = previewRef.current;
+    if (!preview) return;
+
+    let cancelled = false;
+    let stream: MediaStream | undefined;
+
+    async function openCamera() {
+      if (cancelled) return;
+      try {
+        const camera = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+
+        // Permission can arrive after the user has stopped or left the page.
+        if (cancelled) {
+          camera.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        stream = camera;
+        if (preview) preview.srcObject = camera;
+      } catch {
+        if (cancelled) return;
+        setCameraError('Could not open the camera. Check your browser permissions.');
+      }
+    }
+
+    queueMicrotask(() => void openCamera());
+
+    return () => {
+      cancelled = true;
+      stream?.getTracks().forEach((track) => track.stop());
+      preview.srcObject = null;
+    };
+  }, []);
+
+  return (
+    <div className={styles.webcam}>
+      <video ref={previewRef} autoPlay muted playsInline aria-label="Webcam preview" />
+      <div className={styles.webcamControls}>
+        <Button onClick={onStop}>{cameraError ? 'Back to sources' : 'Stop Camera'}</Button>
+        {cameraError ? <p role="alert">{cameraError}</p> : null}
+      </div>
+    </div>
+  );
+}
+
 /**
  * Prepare (SPEC 6.2): bring in a clip, shape it (trim, speed, rotate, mirror, focus area,
  * sensitivity), extract its signature, then name it and save it.
@@ -94,6 +148,7 @@ export function PrepareScreen(_props: { params?: Record<string, string> }) {
       hideSource: s.hideSource,
     })),
   );
+  const [cameraOn, setCameraOn] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const url = useObjectUrl(file);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
@@ -159,6 +214,7 @@ export function PrepareScreen(_props: { params?: Record<string, string> }) {
   const openFile = useCallback(async (candidate: File) => {
     if (usePrepareStore.getState().status === 'extracting') return;
     const token = ++openToken.current;
+    setCameraOn(false);
     usePrepareStore.getState().startOpening();
     try {
       const info = await probeClip(candidate);
@@ -430,9 +486,17 @@ export function PrepareScreen(_props: { params?: Record<string, string> }) {
                 {split ? <span className={styles.caption}>Wake</span> : null}
               </div>
             ) : null}
-            {mode === 'empty' ? (
-              <DropZone onFiles={onFiles} dragging={dragging} opening={status === 'opening'} />
-            ) : null}
+            {mode === 'empty' &&
+              (cameraOn ? (
+                <WebcamPreview onStop={() => setCameraOn(false)} />
+              ) : (
+                <DropZone
+                  onFiles={onFiles}
+                  dragging={dragging}
+                  opening={status === 'opening'}
+                  onUseWebcam={() => setCameraOn(true)}
+                />
+              ))}
             {dragging && mode !== 'empty' ? (
               <div className={styles.dropHint} aria-hidden="true">
                 Drop to use this clip instead
@@ -467,7 +531,7 @@ export function PrepareScreen(_props: { params?: Record<string, string> }) {
             </h1>
             <GuideLink section="prepare" />
           </div>
-          {mode === 'empty' ? <EmptyPanel onFiles={onFiles} /> : null}
+          {mode === 'empty' ? <EmptyPanel /> : null}
           {mode === 'clip' ? (
             <SetupPanel
               onFiles={onFiles}
