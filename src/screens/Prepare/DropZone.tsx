@@ -32,7 +32,7 @@ export function DropZone({ onFiles, dragging, opening, onUseWebcam }: DropZonePr
         </div>
         <div className={styles.source}>
           <h3>Record a video</h3>
-          <p>Preview your camera. Recording is coming soon.</p>
+          <p>Record a clip with your webcam, then preview and trim it.</p>
           <Button disabled={opening} onClick={onUseWebcam}>
             Use Webcam
           </Button>

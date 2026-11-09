@@ -75,9 +75,19 @@ function technicalDetail(error: unknown): string {
   return error instanceof Error ? `${error.name}: ${error.message}${detail}` : String(error);
 }
 
-function WebcamPreview({ onStop }: { onStop: () => void }) {
+function WebcamPreview({
+  onStop,
+  onRecorded,
+}: {
+  onStop: () => void;
+  onRecorded: (file: File) => void;
+}) {
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [recording, setRecording] = useState<'idle' | 'recording' | 'finishing'>('idle');
+  const [recordingError, setRecordingError] = useState<string | null>(null);
   const previewRef = useRef<HTMLVideoElement>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
 
   useEffect(() => {
     const preview = previewRef.current;
@@ -112,17 +122,98 @@ function WebcamPreview({ onStop }: { onStop: () => void }) {
 
     return () => {
       cancelled = true;
+      const recorder = recorderRef.current;
+      recorderRef.current = null;
+      if (recorder && recorder.state !== 'inactive') recorder.stop();
       stream?.getTracks().forEach((track) => track.stop());
       preview.srcObject = null;
     };
   }, []);
 
+  function startRecording() {
+    const stream = previewRef.current?.srcObject;
+    if (!(stream instanceof MediaStream) || recorderRef.current) return;
+    setRecordingError(null);
+
+    if (typeof MediaRecorder === 'undefined') {
+      setRecordingError('This browser does not support webcam recording.');
+      return;
+    }
+    const mimeType = ['video/webm;codecs=vp8', 'video/mp4'].find((type) =>
+      MediaRecorder.isTypeSupported(type),
+    );
+    if (!mimeType) {
+      setRecordingError('This browser cannot record a WebM or MP4 video.');
+      return;
+    }
+
+    try {
+      const recorder = new MediaRecorder(stream, { mimeType });
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = ({ data }) => {
+        if (recorderRef.current === recorder && data.size > 0) chunks.push(data);
+      };
+      recorder.onerror = () => {
+        if (recorderRef.current !== recorder) return;
+        recorderRef.current = null;
+        setRecording('idle');
+        setRecordingError('The recording stopped unexpectedly. Try again.');
+      };
+      recorder.onstop = () => {
+        if (recorderRef.current !== recorder) return;
+        recorderRef.current = null;
+        setRecording('idle');
+        if (chunks.length === 0) {
+          setRecordingError('No video was recorded. Try recording for a few seconds.');
+          return;
+        }
+        const extension = mimeType === 'video/mp4' ? 'mp4' : 'webm';
+        onRecorded(new File(chunks, `Webcam recording.${extension}`, { type: recorder.mimeType }));
+      };
+      recorder.start();
+      recorderRef.current = recorder;
+      setRecording('recording');
+    } catch {
+      setRecordingError('Could not start recording. Try again.');
+    }
+  }
+
+  function stopRecording() {
+    const recorder = recorderRef.current;
+    if (recorder?.state !== 'recording') return;
+    setRecording('finishing');
+    recorder.stop();
+  }
+
   return (
     <div className={styles.webcam}>
-      <video ref={previewRef} autoPlay muted playsInline aria-label="Webcam preview" />
+      <video
+        ref={previewRef}
+        autoPlay
+        muted
+        playsInline
+        aria-label="Webcam preview"
+        onPlaying={() => setCameraReady(true)}
+      />
       <div className={styles.webcamControls}>
-        <Button onClick={onStop}>{cameraError ? 'Back to sources' : 'Stop Camera'}</Button>
-        {cameraError ? <p role="alert">{cameraError}</p> : null}
+        {cameraReady && recording === 'idle' ? (
+          <Button variant="primary" onClick={startRecording}>
+            Start Recording
+          </Button>
+        ) : null}
+        {recording === 'recording' ? (
+          <>
+            <Button variant="primary" onClick={stopRecording}>
+              Stop Recording
+            </Button>
+            <p role="status">Recording…</p>
+          </>
+        ) : null}
+        {recording === 'finishing' ? <p role="status">Finishing recording…</p> : null}
+        {recording === 'idle' ? (
+          <Button onClick={onStop}>{cameraError ? 'Back to sources' : 'Stop Camera'}</Button>
+        ) : null}
+        {cameraError || recordingError ? <p role="alert">{cameraError ?? recordingError}</p> : null}
       </div>
     </div>
   );
@@ -488,7 +579,10 @@ export function PrepareScreen(_props: { params?: Record<string, string> }) {
             ) : null}
             {mode === 'empty' &&
               (cameraOn ? (
-                <WebcamPreview onStop={() => setCameraOn(false)} />
+                <WebcamPreview
+                  onStop={() => setCameraOn(false)}
+                  onRecorded={(recorded) => onFiles([recorded])}
+                />
               ) : (
                 <DropZone
                   onFiles={onFiles}
