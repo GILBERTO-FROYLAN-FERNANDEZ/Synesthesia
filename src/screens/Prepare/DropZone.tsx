@@ -1,3 +1,4 @@
+import { navigate } from '../../app/router';
 import { Button } from '../../ui/Button';
 import { FileButton } from '../../ui/FileButton';
 import styles from './DropZone.module.css';
@@ -40,7 +41,9 @@ export function DropZone({ onFiles, dragging, opening, onUseWebcam }: DropZonePr
         <div className={styles.source}>
           <h3>Live motion</h3>
           <p>Move in front of the camera and see the app respond as you move.</p>
-          <span className={styles.availability}>Coming soon</span>
+          <Button disabled={opening} onClick={() => navigate('/studio/live')}>
+            Start Live Motion
+          </Button>
         </div>
       </div>
     </div>

@@ -82,10 +82,9 @@ export interface RuntimeEvents {
   sound(problem: SoundProblem | null): void;
 }
 
-export interface StudioRuntimeOptions {
+interface RuntimeOptions {
   /** Element the canvas is placed in (letterboxed, centred). */
   host: HTMLElement;
-  signature: KineticSignature;
   composition: Composition;
   quality: Quality;
   loop: boolean;
@@ -93,6 +92,9 @@ export interface StudioRuntimeOptions {
   /** Play sound (default true). Without it the picture runs on the wall clock. */
   sound?: boolean;
 }
+
+export type StudioRuntimeOptions = RuntimeOptions &
+  ({ signature: KineticSignature; liveSampler?: never } | { liveSampler: SignatureSampler });
 
 /** Something laid over the wake that follows the playhead (the clip layer, ./clipLayer.ts). */
 export interface StageOverlay {
@@ -128,6 +130,7 @@ export class StudioRuntime {
   private readonly canvas: HTMLCanvasElement;
   private readonly gl: WebGL2RenderingContext | null;
   private readonly sampler: SignatureSampler;
+  private readonly live: boolean;
   private readonly wallClock: WallClock;
   private readonly sound: StudioSound | null;
   private clock: PlaybackClock;
@@ -166,7 +169,10 @@ export class StudioRuntime {
     this.composition = options.composition;
     this.quality = options.quality;
     this.loop = options.loop;
-    this.sampler = createSampler(options.signature, samplerConfigFor(options.composition.timeline));
+    this.live = options.liveSampler !== undefined;
+    this.sampler =
+      options.liveSampler ??
+      createSampler(options.signature, samplerConfigFor(options.composition.timeline));
     this.wallClock = new WallClock({
       duration: () => this.sampler.duration,
       onEnded: () => this.wake(),
@@ -428,12 +434,13 @@ export class StudioRuntime {
     }
     this.material = material;
     const runner = new VisualRunner(material, this.sampler, seed);
-    runner.reset();
+    runner.reset(seed, this.live ? this.clock.now() : 0);
     this.runner = runner;
     this.dirtySinceReset = false;
     material.setProperties?.(this.composition.visual.properties);
     this.events.picture(null);
-    this.seekVisualTo(this.clock.now());
+    if (this.live) this.needsDraw = true;
+    else this.seekVisualTo(this.clock.now());
     this.wake();
   }
 
@@ -508,11 +515,15 @@ export class StudioRuntime {
     const runner = this.runner;
     if (!runner || !this.material || this.contextLost) return;
     const target = stepsForTime(t);
-    if (runner.steps > target) {
+    if (this.live && Math.abs(runner.steps - target) > FAR_BEHIND_STEPS) {
+      runner.reset(undefined, t);
+      this.needsDraw = true;
+    } else if (runner.steps > target) {
       // The playhead went back: after a loop wrap, replay from the start. A hair's
       // jitter of the sound clock just waits for the playhead to catch up.
       if (isJumpBack(runner.simTime, t, this.sampler.duration, FIXED_DT)) {
-        runner.seek(t);
+        if (this.live) runner.reset(undefined, t);
+        else runner.seek(t);
         this.dirtySinceReset = false;
         this.startCatchUp(ts);
       }
