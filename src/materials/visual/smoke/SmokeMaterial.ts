@@ -65,6 +65,8 @@ export class SmokeMaterial implements VisualMaterial {
       this.quality = ctx.quality;
       const solver = new FluidSolver(ctx.gl, {
         quality: ctx.quality,
+        mapping: ctx.mapping,
+        appearance: 'smoke',
         width: ctx.width,
         height: ctx.height,
         overrides: this.overrides,
@@ -86,6 +88,7 @@ export class SmokeMaterial implements VisualMaterial {
     this.phaseX = 64 * this.rng();
     this.phaseY = 64 * this.rng();
     this.solver?.reset();
+    this.solver?.setPatternSeed(this.noiseSeed);
     this.plume?.reset();
     this.plume?.setVentSeed(this.noiseSeed);
     this.setProperties(baselineValues(SMOKE_PROPERTIES));
@@ -94,6 +97,7 @@ export class SmokeMaterial implements VisualMaterial {
   step(frame: SignatureFrame, props: PropertyValues, dt: number): void {
     const params = this.paramsFor(props);
     this.display = params.display;
+    if (this.solver) this.solver.mediumDensity = props.density ?? 0.5;
     // Always draw the same number of values per step so the random sequence depends
     // only on the step count, never on property values.
     this.phaseX += (this.rng() - 0.5) * NOISE_DRIFT;
@@ -118,6 +122,7 @@ export class SmokeMaterial implements VisualMaterial {
   /** Apply properties that only change how the smoke is drawn (brightness, hue) while paused. */
   setProperties(props: PropertyValues): void {
     this.display = this.paramsFor(props).display;
+    if (this.solver) this.solver.mediumDensity = props.density ?? 0.5;
   }
 
   draw(): void {

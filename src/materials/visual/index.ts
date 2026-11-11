@@ -8,7 +8,7 @@ import { waterEntry } from './water';
 
 /**
  * Every visual material, in picker order. V0 "Signature" (the diagnostic view) is
- * listed but not counted toward the five materials.
+ * listed separately from the expressive materials.
  */
 export const VISUAL_MATERIALS: VisualMaterialEntry[] = [
   waterEntry,

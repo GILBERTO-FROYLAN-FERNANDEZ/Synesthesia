@@ -60,6 +60,20 @@ export function StudioPanel() {
   return (
     <aside className={styles.panel} aria-label="Composition controls">
       <ClipControl />
+      <section className={styles.section} aria-label="Visual mapping">
+        <h2 className={styles.sectionTitle}>Mapping</h2>
+        <SegmentedControl
+          label="Visual mapping"
+          options={['Wake', 'Displacement']}
+          value={composition.visual.mapping === 'displacement' ? 1 : 0}
+          onChange={(index) => store().setVisualMapping(index === 1 ? 'displacement' : 'wake')}
+        />
+        <p className={styles.fieldNote}>
+          {composition.visual.mapping === 'displacement'
+            ? 'Movement pushes the medium already in the frame.'
+            : 'Movement leaves a wake in the medium.'}
+        </p>
+      </section>
       <MaterialSection
         field="visual"
         kind="Visual"

@@ -63,6 +63,8 @@ export class HoneyMaterial implements VisualMaterial {
       this.quality = ctx.quality;
       const solver = new FluidSolver(ctx.gl, {
         quality: ctx.quality,
+        mapping: ctx.mapping,
+        appearance: 'honey',
         width: ctx.width,
         height: ctx.height,
         overrides: this.overrides,
@@ -92,6 +94,7 @@ export class HoneyMaterial implements VisualMaterial {
     const params = this.paramsFor(props);
     this.applyPalette(params.palette);
     this.display = params.display;
+    if (this.solver) this.solver.mediumDensity = props.density ?? 0.5;
     if (this.body) this.body.params = params.body;
     // Always draw the same number of values per step so the random sequence depends
     // only on the step count, never on property values.
@@ -114,6 +117,7 @@ export class HoneyMaterial implements VisualMaterial {
     const params = this.paramsFor(props);
     this.applyPalette(params.palette);
     this.display = params.display;
+    if (this.solver) this.solver.mediumDensity = props.density ?? 0.5;
   }
 
   draw(): void {

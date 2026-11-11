@@ -123,7 +123,7 @@ export class SmokePlume {
   private emitAndLift({ gl, solver, params }: FluidHookContext): void {
     const short = Math.min(solver.simGrid.width, solver.simGrid.height);
     const velocity = solver.velocity;
-    if (solver.fieldMagnitude() > 1e-9) {
+    if (solver.mapping !== 'displacement' && solver.fieldMagnitude() > 1e-9) {
       // Emission: the strongest push within the burst radius, and its direction.
       const e = this.emission;
       e.use();

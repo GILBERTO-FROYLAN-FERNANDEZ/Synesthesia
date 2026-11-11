@@ -92,6 +92,9 @@ function readMaterial(value: unknown, path: string, fail: Fail): MaterialSetting
     materialId: readString(o, 'materialId', path, fail, { nonEmpty: true, maxLength: 100 }),
     materialVersion: readNumber(o, 'materialVersion', path, fail, { integer: true, min: 0 }),
     properties: readProperties(o.properties, `${path}.properties`, fail),
+    ...(path === 'visual' && o.mapping !== undefined
+      ? { mapping: readChoice(o, 'mapping', path, fail, ['wake', 'displacement'] as const) }
+      : {}),
   };
 }
 
@@ -193,6 +196,10 @@ export function validateComposition(raw: unknown): Composition {
       pattern: THUMBNAIL_PATTERN,
     });
   }
+  if (composition.visual.materialId === 'displacement') {
+    composition.visual.materialId = 'water';
+    composition.visual.mapping = 'displacement';
+  }
   return composition;
 }
 
@@ -242,6 +249,7 @@ export function serializeComposition(c: Composition): string {
     },
     linked: c.linked,
     visual: {
+      ...(c.visual.mapping ? { mapping: c.visual.mapping } : {}),
       materialId: c.visual.materialId,
       materialVersion: c.visual.materialVersion,
       properties: { ...c.visual.properties },

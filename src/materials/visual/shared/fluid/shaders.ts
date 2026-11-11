@@ -393,10 +393,25 @@ uniform vec2 uVelocityTexel;
 uniform vec2 uSourceTexel;
 uniform float uDt;
 uniform float uDecay;
+#ifdef MEDIUM_RENEWAL
+uniform sampler2D uRestMedium;
+uniform float uMediumKeep;
+uniform vec2 uMediumAspect;
+#endif
 out vec4 fragColor;
 void main () {
-  vec2 coord = vUv - uDt * sampleLinear(uVelocity, vUv, uVelocityTexel).xy * uVelocityTexel;
-  fragColor = sampleLinear(uSource, coord, uSourceTexel) * uDecay;
+  vec2 velocityUv = sampleLinear(uVelocity, vUv, uVelocityTexel).xy * uVelocityTexel;
+  vec2 coord = vUv - uDt * velocityUv;
+  vec4 carried = sampleLinear(uSource, coord, uSourceTexel) * uDecay;
+#ifdef MEDIUM_RENEWAL
+  // Maintain material detail as stirring and interpolation stretch it away. The
+  // exponential blend is continuous in simulation time and never resets velocity.
+  vec4 rest = sampleLinear(uRestMedium, vUv, uSourceTexel);
+  float speed = length(velocityUv * uMediumAspect);
+  float keep = uMediumKeep * exp(-uDt * min(12.0, speed * 6.0));
+  carried = mix(rest, carried, keep);
+#endif
+  fragColor = carried;
 }
 `;
 

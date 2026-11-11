@@ -39,6 +39,8 @@ import { solverHookProbe, type SolverProbeResult } from './solverProbe';
 // Test API
 
 export interface RenderOpts {
+  repeatMotion?: boolean;
+  mapping?: 'wake' | 'displacement';
   materialId: string;
   kind: SyntheticKind;
   steps: number;
@@ -103,8 +105,11 @@ function creatorFor(opts: RenderOpts): () => VisualMaterial {
   return entry.create;
 }
 
-function samplerFor(kind: SyntheticKind): SignatureSampler {
-  return createSyntheticSampler(kind);
+function samplerFor(kind: SyntheticKind, repeat = false): SignatureSampler {
+  const sampler = createSyntheticSampler(kind);
+  if (!repeat) return sampler;
+  const sample = sampler.sample.bind(sampler);
+  return { ...sampler, sample: (t) => sample(t % sampler.signatureDuration) };
 }
 
 async function render(
@@ -113,7 +118,8 @@ async function render(
 ) {
   return renderOffscreen({
     create: creatorFor(opts),
-    sampler: samplerFor(opts.kind),
+    mapping: opts.mapping,
+    sampler: samplerFor(opts.kind, opts.repeatMotion),
     steps: Math.max(0, Math.floor(opts.steps)),
     props: opts.props,
     finalProps: opts.finalProps,

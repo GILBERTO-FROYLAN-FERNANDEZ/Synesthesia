@@ -68,6 +68,7 @@ export class BubblesMaterial implements VisualMaterial {
   private sim: BubbleSim | null = null;
   private instances = new Float32Array(0);
   private quality: Quality = 'standard';
+  private displacement = false;
   private simParams: BubbleSimParams;
   private display: BubbleDisplayParams;
   private readonly hueTurn = new HueTurn();
@@ -87,6 +88,7 @@ export class BubblesMaterial implements VisualMaterial {
       this.gl = gl;
       this.res = res;
       this.quality = ctx.quality;
+      this.displacement = ctx.mapping === 'displacement';
       this.program = createProgram(res, BUBBLE_VERTEX, BUBBLE_FRAGMENT, { name: 'bubbles' });
       this.paletteTex = createTexture(
         res,
@@ -130,9 +132,9 @@ export class BubblesMaterial implements VisualMaterial {
 
   step(frame: SignatureFrame, props: PropertyValues, dt: number): void {
     const params = bubbleParams(props, this.quality);
-    this.simParams = params.sim;
+    this.simParams = this.displacement ? { ...params.sim, popRate: 0 } : params.sim;
     this.display = params.display;
-    this.sim?.step(frame, params.sim, dt);
+    this.sim?.step(frame, this.simParams, dt);
   }
 
   /** Apply display-only properties (brightness, hue, size) without advancing time. */

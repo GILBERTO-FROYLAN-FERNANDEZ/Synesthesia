@@ -17,6 +17,7 @@ import { StudioRuntime, type PictureProblem, type SoundProblem } from '../../stu
 import { Button } from '../../ui/Button';
 import { MaterialPicker } from '../../ui/MaterialPicker';
 import { PropertyPanel } from '../../ui/PropertyPanel';
+import { SegmentedControl } from '../../ui/SegmentedControl';
 import { Slider } from '../../ui/Slider';
 import { floorFromSensitivity, formatSensitivity } from '../Prepare/sensitivity';
 import styles from './Studio.module.css';
@@ -185,6 +186,20 @@ export function LiveStudioScreen() {
             {composition.mute.sound ? 'Enable sound' : 'Mute sound'}
           </Button>
           {sound && !composition.mute.sound ? <p role="status">Sound is unavailable.</p> : null}
+          <section className={styles.section} aria-label="Visual mapping">
+            <h2 className={styles.sectionTitle}>Mapping</h2>
+            <SegmentedControl
+              label="Visual mapping"
+              options={['Wake', 'Displacement']}
+              value={composition.visual.mapping === 'displacement' ? 1 : 0}
+              onChange={(index) =>
+                setComposition((current) => ({
+                  ...current,
+                  visual: { ...current.visual, mapping: index === 1 ? 'displacement' : 'wake' },
+                }))
+              }
+            />
+          </section>
           {(['visual', 'sound'] as const).map((kind) => {
             const entries = kind === 'visual' ? listVisualMaterials() : listSoundMaterials();
             const field = composition[kind];
@@ -202,6 +217,7 @@ export function LiveStudioScreen() {
                     setComposition((current) => ({
                       ...current,
                       [kind]: {
+                        ...current[kind],
                         materialId: next.id,
                         materialVersion: next.version,
                         properties: baselineValues(next.properties),

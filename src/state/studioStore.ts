@@ -38,7 +38,7 @@ import {
   listSoundMaterials,
   listVisualMaterials,
 } from '../materials/registry';
-import type { Quality } from '../materials/types';
+import type { Quality, VisualMapping } from '../materials/types';
 import type { KineticSignature } from '../signature/types';
 import { Debouncer } from '../studio/autosave';
 import {
@@ -208,6 +208,7 @@ export interface StudioState {
 
   setProperty: (field: Field, id: string, value: number, gesture: Gesture) => void;
   setMaterial: (field: Field, materialId: string) => void;
+  setVisualMapping: (mapping: VisualMapping) => void;
   setLinked: (linked: boolean) => void;
   setTimeline: (patch: Partial<Composition['timeline']>, gesture?: Gesture) => void;
   setSeed: (seed: number) => void;
@@ -641,6 +642,11 @@ export const useStudioStore = create<StudioState>()((set, get) => {
       const meta = registryCatalog[field](materialId);
       if (!state || !meta) return;
       commit(switchMaterial(state, field, meta, registryCatalog));
+    },
+    setVisualMapping: (mapping) => {
+      const state = present();
+      if (!state) return;
+      commit({ ...state, visual: { ...state.visual, mapping } });
     },
     setLinked: (linked) => {
       const state = present();

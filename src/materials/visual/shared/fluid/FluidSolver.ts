@@ -1,3 +1,6 @@
+import { MEDIUM_FRAGMENT } from './medium';
+import { SURFACE_FRAGMENT } from './surface';
+import type { VisualMapping } from '../../../types';
 /*
  * Adapted from WebGL-Fluid-Simulation by Pavel Dobryakov, MIT License,
  * Copyright (c) 2017 Pavel Dobryakov. See LICENSE-webgl-fluid.txt in this folder.
@@ -92,6 +95,8 @@ import {
 } from './shaders';
 
 export interface FluidSolverOptions {
+  appearance?: 'water' | 'honey' | 'smoke';
+  mapping?: VisualMapping;
   quality: Quality;
   /** Canvas drawing-buffer size; the grids follow its aspect ratio. */
   width: number;
@@ -255,6 +260,7 @@ interface Programs {
   pressure: ShaderProgram;
   gradient: ShaderProgram;
   advection: ShaderProgram;
+  advectionMedium: ShaderProgram | null;
   display: ShaderProgram;
   copy: ShaderProgram;
 }
@@ -304,7 +310,15 @@ export class FluidSolver {
   private stepParams: FluidStepParams | null = null;
   private stepForceMagnitude = 0;
   private stepRawMagnitude = 0;
+  /** Palette texture for material passes that initialize pre-existing color. */
   private readonly paletteTex: WebGLTexture;
+  readonly mapping: VisualMapping;
+  private readonly appearance: 'water' | 'honey' | 'smoke';
+  private readonly mediumPass: ShaderProgram | null;
+  private pendingMedium = false;
+  /** An immutable texture supplies detail lost to repeated stirring. */
+  private restMedium: RenderTarget | null = null;
+  mediumDensity = 0.5;
   private readonly spotTex: WebGLTexture;
   private spotSeed: number | null = null;
   private readonly hueTurn = new HueTurn();
@@ -312,6 +326,8 @@ export class FluidSolver {
 
   constructor(gl: WebGL2RenderingContext, options: FluidSolverOptions) {
     this.gl = gl;
+    this.mapping = options.mapping ?? 'wake';
+    this.appearance = options.appearance ?? 'water';
     this.quality = options.quality;
     this.simCells =
       options.simCells !== undefined && options.simCells >= 8
@@ -337,6 +353,12 @@ export class FluidSolver {
         'fluid base',
       );
       this.programs = this.compilePrograms();
+      this.mediumPass =
+        this.mapping === 'displacement'
+          ? this.createPass(MEDIUM_FRAGMENT, 'existing medium', [
+              `MEDIUM_${this.appearance.toUpperCase()}`,
+            ])
+          : null;
       this.paletteTex = createTexture(
         this.resources,
         PALETTE_SIZE,
@@ -417,8 +439,16 @@ export class FluidSolver {
   /** Semi-Lagrangian advection of any target through the current velocity. */
   advect(target: DoubleRenderTarget, dt: number, dissipation: number): void {
     const gl = this.gl;
-    const p = this.programs.advection;
+    const renewing = target === this.dye && this.restMedium !== null;
+    const p = (renewing ? this.programs.advectionMedium : null) ?? this.programs.advection;
     p.use();
+    if (renewing && this.restMedium) {
+      gl.uniform1i(p.u('uRestMedium'), bindTexture(gl, 2, this.restMedium.texture));
+      const short = Math.min(this.width, this.height);
+      gl.uniform2f(p.u('uMediumAspect'), this.width / short, this.height / short);
+      // About two seconds per half-replenishment: gradual, while retaining the push.
+      gl.uniform1f(p.u('uMediumKeep'), Math.exp(-0.35 * Math.max(0, dt)));
+    }
     gl.uniform2f(p.u('uTexelSize'), target.texelSizeX, target.texelSizeY);
     gl.uniform2f(p.u('uVelocityTexel'), this.velocity.texelSizeX, this.velocity.texelSizeY);
     gl.uniform2f(p.u('uSourceTexel'), target.texelSizeX, target.texelSizeY);
@@ -463,13 +493,32 @@ export class FluidSolver {
     clearTarget(gl, this.divergence);
     clearTarget(gl, this.curl);
     this.lowPass = null;
+    this.pendingMedium = this.mapping === 'displacement';
+  }
+
+  private prepareMedium(): void {
+    const pass = this.mediumPass;
+    if (!this.pendingMedium || !pass || !this.restMedium) return;
+    const gl = this.gl;
+    resetPassState(gl);
+    pass.use();
+    gl.uniform2f(pass.u('uTexelSize'), this.dye.texelSizeX, this.dye.texelSizeY);
+    const short = Math.min(this.dye.width, this.dye.height);
+    gl.uniform2f(pass.u('uAspect'), this.dye.width / short, this.dye.height / short);
+    gl.uniform1f(pass.u('uPhase'), ((this.spotSeed ?? 0) / 4294967296) * Math.PI * 2);
+    gl.uniform1i(pass.u('uPalette'), bindTexture(gl, 0, this.paletteTex));
+    this.blit(this.restMedium);
+    this.copyInto(this.restMedium, this.dye.read);
+    this.pendingMedium = false;
   }
 
   /** Advance one fixed step. */
   step(input: SignatureField, params: FluidStepParams): void {
     if (this.disposed || this.gl.isContextLost()) return;
     const gl = this.gl;
-    const p = params;
+    this.prepareMedium();
+    const p =
+      this.mapping === 'displacement' ? { ...params, dyeAmount: 0, dyeDissipation: 0 } : params;
     const dt = p.dt;
     resetPassState(gl);
     this.triangle.bind();
@@ -507,6 +556,7 @@ export class FluidSolver {
   /** Draw the dye to the canvas's default framebuffer. */
   display(params: FluidDisplayParams): void {
     if (this.disposed || this.gl.isContextLost()) return;
+    this.prepareMedium();
     const gl = this.gl;
     resetPassState(gl);
     const p = this.programs.display;
@@ -514,8 +564,13 @@ export class FluidSolver {
     const short = Math.min(this.width, this.height);
     gl.uniform2f(p.u('uTexelSize'), 1 / gl.drawingBufferWidth, 1 / gl.drawingBufferHeight);
     gl.uniform2f(p.u('uDyeTexel'), this.dye.texelSizeX, this.dye.texelSizeY);
-    gl.uniform1f(p.u('uExposure'), Math.max(0, params.exposure));
+    gl.uniform1f(
+      p.u('uExposure'),
+      Math.max(0, params.exposure) *
+        (this.mapping === 'displacement' ? 0.35 + 1.3 * this.mediumDensity : 1),
+    );
     gl.uniform1f(p.u('uSaturation'), Math.max(0, params.saturation));
+    gl.uniform1f(p.u('uMediumDensity'), this.mediumDensity);
     gl.uniform1f(p.u('uSurfaceLight'), Math.min(1, Math.max(0, params.surfaceLight)));
     gl.uniform1f(p.u('uSlopeScale'), SURFACE_SLOPE_SCALE);
     gl.uniform1f(p.u('uSlopeReach'), SURFACE_SLOPE_REACH);
@@ -585,7 +640,18 @@ export class FluidSolver {
       pressure: this.createPass(PRESSURE_FRAGMENT, 'fluid pressure'),
       gradient: this.createPass(GRADIENT_SUBTRACT_FRAGMENT, 'fluid gradient'),
       advection: this.createPass(ADVECTION_FRAGMENT, 'fluid advection', manual),
-      display: this.createPass(DISPLAY_FRAGMENT, 'fluid display', manual),
+      advectionMedium:
+        this.mapping === 'displacement'
+          ? this.createPass(ADVECTION_FRAGMENT, 'fluid advection + medium renewal', [
+              ...manual,
+              'MEDIUM_RENEWAL',
+            ])
+          : null,
+      display: this.createPass(
+        this.mapping === 'displacement' ? SURFACE_FRAGMENT : DISPLAY_FRAGMENT,
+        'fluid display',
+        [...manual, `MEDIUM_${this.appearance.toUpperCase()}`],
+      ),
       copy: this.createPass(COPY_FRAGMENT, 'fluid copy'),
     };
   }
@@ -599,6 +665,14 @@ export class FluidSolver {
     this.velocity = createDoubleRenderTarget(res, sim.width, sim.height, rg, this.filter);
     this.scratch = createDoubleRenderTarget(res, sim.width, sim.height, rg, this.filter);
     this.dye = createDoubleRenderTarget(res, dye.width, dye.height, rgba, this.filter);
+    if (this.mapping === 'displacement') {
+      const previousRest = this.restMedium;
+      this.restMedium = createRenderTarget(res, dye.width, dye.height, rgba, this.filter);
+      if (previousRest) {
+        this.copyInto(previousRest, this.restMedium);
+        deleteRenderTarget(res, previousRest);
+      }
+    }
     this.pressure = createDoubleRenderTarget(res, sim.width, sim.height, r, this.gl.NEAREST);
     this.divergence = createRenderTarget(res, sim.width, sim.height, r, this.gl.NEAREST);
     this.curl = createRenderTarget(res, sim.width, sim.height, r, this.gl.NEAREST);

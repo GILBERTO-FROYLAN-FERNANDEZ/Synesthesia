@@ -159,6 +159,7 @@ export class FilamentsMaterial implements VisualMaterial {
   private width = 1;
   private height = 1;
   /** The last step's length (the strands' glow reads speed from their last move). */
+  private displacement = false;
   private lastDt = 1 / 60;
   private simParams: FilamentSimParams;
   private display: FilamentDisplayParams;
@@ -181,6 +182,7 @@ export class FilamentsMaterial implements VisualMaterial {
       this.gl = gl;
       this.res = res;
       this.quality = ctx.quality;
+      this.displacement = ctx.mapping === 'displacement';
       this.width = Math.max(1, Math.round(ctx.width));
       this.height = Math.max(1, Math.round(ctx.height));
       this.programs = {
@@ -246,7 +248,7 @@ export class FilamentsMaterial implements VisualMaterial {
     sim.step(frame, params.sim, dt);
     if (dt > 0) this.lastDt = dt;
     this.pointsDirty = true;
-    this.paintRibbons(sim, dt);
+    if (!this.displacement) this.paintRibbons(sim, dt);
   }
 
   /** Apply display-only properties (brightness, hue, thickness of the strands) while paused. */

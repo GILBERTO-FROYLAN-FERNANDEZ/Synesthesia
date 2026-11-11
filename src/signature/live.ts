@@ -87,7 +87,11 @@ export function trackLiveVideo(
         canvas.width = width;
         canvas.height = height;
       }
+      // Match the mirrored webcam preview before optical flow is calculated. This
+      // reflects both the location and horizontal velocity, including derived features.
+      ctx.setTransform(-1, 0, 0, 1, width, 0);
       ctx.drawImage(video, 0, 0, width, height);
+      ctx.resetTransform();
       const gray = new Uint8Array(width * height);
       rgbaToGray(ctx.getImageData(0, 0, width, height).data, gray);
       const frame: LiveFrameRequest = {

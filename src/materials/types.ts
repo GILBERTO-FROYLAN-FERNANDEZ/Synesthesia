@@ -43,7 +43,10 @@ export interface MaterialMeta {
 
 export type Quality = 'draft' | 'standard' | 'high';
 
+export type VisualMapping = 'wake' | 'displacement';
+
 export interface VisualContext {
+  mapping?: VisualMapping;
   gl: WebGL2RenderingContext;
   /** Drawing-buffer size in pixels. */
   width: number;

@@ -212,6 +212,7 @@ async function materialPicture(
       quality: request.output.quality ?? 'high',
       seed,
       rng: visualRng(composition.seed),
+      mapping: composition.visual.mapping,
     });
     const runner = new VisualRunner(
       created,

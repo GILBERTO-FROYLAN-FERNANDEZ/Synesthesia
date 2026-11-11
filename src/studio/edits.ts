@@ -191,7 +191,7 @@ export function switchMaterial(
   };
   let next: WakeState = {
     ...state,
-    [field]: { materialId: meta.id, materialVersion: meta.version, properties },
+    [field]: { ...own, materialId: meta.id, materialVersion: meta.version, properties },
   };
   const defs = defsOf(next, catalog);
   if (state.linked) next = unify(next, defs);

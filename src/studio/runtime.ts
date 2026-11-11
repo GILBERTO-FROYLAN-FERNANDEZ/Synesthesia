@@ -361,6 +361,7 @@ export class StudioRuntime {
     let url: string | null = null;
     await renderOffscreen({
       create: entry.create,
+      mapping: c.visual.mapping,
       sampler: this.sampler,
       steps,
       props: c.visual.properties,
@@ -419,6 +420,7 @@ export class StudioRuntime {
         quality: this.quality,
         seed,
         rng: visualRng(c.seed),
+        mapping: c.visual.mapping,
       });
     } catch (error) {
       material.dispose();
