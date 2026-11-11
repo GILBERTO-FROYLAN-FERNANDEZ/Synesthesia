@@ -583,6 +583,7 @@
   border: 1px solid var(--color-silt);
   border-radius: var(--radius-sm);
   pointer-events: none;
+  transform: scaleX(-1);
 }
 
 @media (max-width: 900px) {
