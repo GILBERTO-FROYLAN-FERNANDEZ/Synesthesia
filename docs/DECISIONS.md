@@ -792,6 +792,8 @@ implementation follows the intent. To revisit with Freeman only if a material fe
   the canvas, the focus box on the movement's rectangle, opacity on screen, the frame at
   the playhead paused and playing, kept across Save, shown in Present, gone after a reload;
   a turned and mirrored clip, and Range; no slider for an imported signature).
+## 2026-11-12: Adding Body Tracking to Live Motion
+- **Decision**: Using GoogleAI's MediaPipe PoseLandmarker, as it is a decently sophisticated model that can be used in typescript. We want to avoid computational overhead that may arise from needing to use APIs between python and typescript, and will instead opt to use typescript to ensure some measure of speed.
 
 ## Pending
 - **Freeman's MacBook Pro:** model, year, chip, macOS and Chrome versions. Diagnostics' Copy

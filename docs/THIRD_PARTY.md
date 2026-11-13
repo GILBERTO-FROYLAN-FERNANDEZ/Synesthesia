@@ -13,6 +13,7 @@ unmodified packages. Versions are pinned exactly in `package.json`.
 | zustand | 5.0.15 | MIT | App state stores |
 | idb | 8.0.3 | ISC | IndexedDB wrapper for the library |
 | fflate | 0.8.3 | MIT | Zip backup and restore |
+|@mediapipe/tasks-vision | 1.2.3 | Apache-2.0 | Pose estimation
 
 Mediabunny is used as published on npm, without modification, so MPL-2.0's file-level
 copyleft places no obligations on this project's own code.
@@ -31,6 +32,8 @@ you add something that ships, add it to `scripts/third-party-notices.mjs` too.
 |---|---|---|---|---|
 | `public/vendor/opencv/opencv.js` | https://docs.opencv.org/4.13.0/opencv.js (official build) | OpenCV 4.13.0 | Apache-2.0 (`public/vendor/opencv/LICENSE`) | `63366510248adf3a7eddf3e793dd825404efb7df3749f4d6f8557c7fa4ca8aa0` |
 | `public/fonts/AtkinsonHyperlegibleNext-{Light,Regular,SemiBold}.woff2` | https://github.com/googlefonts/atkinson-hyperlegible-next at commit `7925f50f649b3813257faf2f4c0b381011f434f1` | 2.x (2025) | SIL OFL 1.1 (`public/fonts/OFL.txt`) | Light `129a2785…d909`, Regular `378aea0f…9c54`, SemiBold `4ab00275…829a` |
+`public/vendor/mediapipe/pose_landmarker_lite.task` |	https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task (Official Google model file) |	Lite, float16, 1; 1.2.3	|Apache-2.0|	59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a
+
 
 OpenCV.js is a single file with the WebAssembly embedded; it is loaded lazily, only when
 extraction starts. The official 4.13.0 build is single-threaded, so it needs no

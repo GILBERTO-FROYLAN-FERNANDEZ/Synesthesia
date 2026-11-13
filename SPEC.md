@@ -264,6 +264,7 @@ Clip ──► Prepare (trim, rotate, focus area)
 | PWA / offline | vite-plugin-pwa (M8) | MIT |
 | Tests | Vitest; Playwright (Chromium) | MIT / Apache-2.0 |
 | Font | Atkinson Hyperlegible Next, self-hosted | OFL |
+| ML Pose  | MediaPipe's Pose Estimation Landmarker Lite | apache2.0 | 
 
 ### 7.3 Repository layout
 

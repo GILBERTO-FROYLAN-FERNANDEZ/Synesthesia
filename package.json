@@ -23,6 +23,7 @@
     "notices": "node scripts/third-party-notices.mjs"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "1.2.3",
     "fflate": "0.8.3",
     "idb": "8.0.3",
     "mediabunny": "1.60.0",
