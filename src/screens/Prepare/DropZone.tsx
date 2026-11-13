@@ -45,6 +45,13 @@ export function DropZone({ onFiles, dragging, opening, onUseWebcam }: DropZonePr
             Start Live Motion
           </Button>
         </div>
+        <div className={styles.source}>
+          <h3>Live Body Tracking</h3>
+          <p>Move in front of the camera and see the app respond as you move.</p>
+          <Button disabled={opening} onClick={() => navigate('/studio/live-body-tracking')}>
+            Start Live Body Tracking
+          </Button>
+        </div>
       </div>
     </div>
   );

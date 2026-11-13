@@ -6,6 +6,7 @@ import { GuideScreen } from '../screens/Guide/GuideScreen';
 import { HelpScreen } from '../screens/Help/HelpScreen';
 import { LibraryScreen } from '../screens/Library/LibraryScreen';
 import { LiveStudioScreen } from '../screens/Studio/LiveStudioScreen';
+import { LiveBodyTrackingStudioScreen } from '../screens/Studio/LiveBodyTrackingStudioScreen';
 import { PrepareScreen } from '../screens/Prepare/PrepareScreen';
 import { SettingsScreen } from '../screens/Settings/SettingsScreen';
 import { SignatureScreen } from '../screens/Signature/SignatureScreen';
@@ -36,6 +37,7 @@ const ROUTES: RouteDef[] = [
   { pattern: '/signature/:signatureId', render: (params) => <SignatureScreen params={params} /> },
   { pattern: '/studio/new/:signatureId', render: (params) => <StudioScreen params={params} /> },
   { pattern: '/studio/live', render: () => <LiveStudioScreen /> },
+  { pattern: '/studio/live-body-tracking', render: () => <LiveBodyTrackingStudioScreen /> },
   { pattern: '/studio/:compositionId', render: (params) => <StudioScreen params={params} /> },
   { pattern: '/album/new/:signatureId', render: (params) => <NewAlbumScreen params={params} /> },
   { pattern: '/album/:albumId', render: (params) => <AlbumScreen params={params} /> },
