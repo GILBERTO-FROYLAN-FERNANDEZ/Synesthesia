@@ -103,3 +103,11 @@
     max-height: min(360px, 60vh);
   }
 }
+
+.disabledOption {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.disabledOption.highlight {
+  background: transparent;
+}

@@ -197,7 +197,8 @@ export function switchMaterial(
         ? visualMappingProperties(meta.properties, state.visual.mapping)
         : meta.properties,
     ),
-    ...(field === 'visual' && state.visual.mapping === 'lines'
+    ...(field === 'visual' &&
+    (state.visual.mapping === 'lines' || state.visual.mapping === 'ripples')
       ? { size: own.properties.size ?? 0.5 }
       : {}),
   };

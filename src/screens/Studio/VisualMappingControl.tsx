@@ -11,7 +11,7 @@ export function VisualMappingControl({
   return (
     <SegmentedControl
       label="Visual mapping"
-      options={['Wake', 'Displacement', 'Lines']}
+      options={['Wake', 'Displacement', 'Lines', 'Ripples']}
       value={Math.max(0, VISUAL_MAPPINGS.indexOf(value ?? 'wake'))}
       onChange={(index) => onChange(VISUAL_MAPPINGS[index] ?? 'wake')}
     />

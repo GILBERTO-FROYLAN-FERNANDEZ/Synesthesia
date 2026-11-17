@@ -640,13 +640,24 @@ export const useStudioStore = create<StudioState>()((set, get) => {
     setMaterial: (field, materialId) => {
       const state = present();
       const meta = registryCatalog[field](materialId);
-      if (!state || !meta) return;
+      if (
+        !state ||
+        !meta ||
+        (field === 'visual' && state.visual.mapping === 'ripples' && materialId === 'honey')
+      )
+        return;
       commit(switchMaterial(state, field, meta, registryCatalog));
     },
     setVisualMapping: (mapping) => {
       const state = present();
       if (!state) return;
-      commit({ ...state, visual: { ...state.visual, mapping } });
+      const next = { ...state, visual: { ...state.visual, mapping } };
+      const water = registryCatalog.visual('water');
+      commit(
+        mapping === 'ripples' && state.visual.materialId === 'honey' && water
+          ? switchMaterial(next, 'visual', water, registryCatalog)
+          : next,
+      );
     },
     setLinked: (linked) => {
       const state = present();

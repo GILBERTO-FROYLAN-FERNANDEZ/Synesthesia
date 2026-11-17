@@ -195,7 +195,16 @@ export function LiveStudioScreen() {
               onChange={(mapping) =>
                 setComposition((current) => ({
                   ...current,
-                  visual: { ...current.visual, mapping },
+                  visual: {
+                    ...current.visual,
+                    mapping,
+                    ...(mapping === 'ripples' && current.visual.materialId === 'honey'
+                      ? {
+                          materialId: 'water',
+                          materialVersion: getVisualMaterial('water')!.meta.version,
+                        }
+                      : {}),
+                  },
                 }))
               }
             />
@@ -209,7 +218,19 @@ export function LiveStudioScreen() {
               <div className={styles.section} key={kind}>
                 <MaterialPicker
                   kind={label}
-                  options={entries.map(({ meta }) => meta)}
+                  options={entries.map(({ meta }) => ({
+                    ...meta,
+                    disabled:
+                      kind === 'visual' &&
+                      composition.visual.mapping === 'ripples' &&
+                      meta.id === 'honey',
+                    disabledReason:
+                      kind === 'visual' &&
+                      composition.visual.mapping === 'ripples' &&
+                      meta.id === 'honey'
+                        ? 'Unavailable with Ripples'
+                        : undefined,
+                  }))}
                   value={field.materialId}
                   onChange={(id) => {
                     const next = entries.find(({ meta }) => meta.id === id)?.meta;
@@ -221,13 +242,17 @@ export function LiveStudioScreen() {
                         materialId: next.id,
                         materialVersion: next.version,
                         properties: {
-                          ...(kind === 'visual' && current.visual.mapping === 'lines'
+                          ...(kind === 'visual' &&
+                          (current.visual.mapping === 'lines' ||
+                            current.visual.mapping === 'ripples')
                             ? valuesAfterMaterialSwitch(
                                 current.visual.properties,
-                                visualMappingProperties(next.properties, 'lines'),
+                                visualMappingProperties(next.properties, current.visual.mapping),
                               )
                             : baselineValues(next.properties)),
-                          ...(kind === 'visual' && current.visual.mapping === 'lines'
+                          ...(kind === 'visual' &&
+                          (current.visual.mapping === 'lines' ||
+                            current.visual.mapping === 'ripples')
                             ? { size: current.visual.properties.size ?? 0.5 }
                             : {}),
                         },
