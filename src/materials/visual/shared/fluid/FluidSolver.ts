@@ -316,6 +316,7 @@ export class FluidSolver {
   private readonly appearance: 'water' | 'honey' | 'smoke';
   private readonly mediumPass: ShaderProgram | null;
   private pendingMedium = false;
+  private mediumTime = 0;
   /** An immutable texture supplies detail lost to repeated stirring. */
   private restMedium: RenderTarget | null = null;
   mediumDensity = 0.5;
@@ -447,6 +448,7 @@ export class FluidSolver {
       const short = Math.min(this.width, this.height);
       gl.uniform2f(p.u('uMediumAspect'), this.width / short, this.height / short);
       // About two seconds per half-replenishment: gradual, while retaining the push.
+      gl.uniform1f(p.u('uSmokeTime'), this.mediumTime);
       gl.uniform1f(p.u('uMediumKeep'), Math.exp(-0.35 * Math.max(0, dt)));
     }
     gl.uniform2f(p.u('uTexelSize'), target.texelSizeX, target.texelSizeY);
@@ -494,6 +496,7 @@ export class FluidSolver {
     clearTarget(gl, this.curl);
     this.lowPass = null;
     this.pendingMedium = this.mapping === 'displacement';
+    this.mediumTime = 0;
   }
 
   private prepareMedium(): void {
@@ -518,7 +521,13 @@ export class FluidSolver {
     const gl = this.gl;
     this.prepareMedium();
     const p =
-      this.mapping === 'displacement' ? { ...params, dyeAmount: 0, dyeDissipation: 0 } : params;
+      this.mapping === 'displacement'
+        ? {
+            ...params,
+            dyeAmount: 0,
+            dyeDissipation: this.appearance === 'smoke' ? params.dyeDissipation * 0.85 : 0,
+          }
+        : params;
     const dt = p.dt;
     resetPassState(gl);
     this.triangle.bind();
@@ -548,6 +557,7 @@ export class FluidSolver {
       p.pressureIterations ?? FLUID_TIERS[this.quality].pressureIterations,
       p.pressureWarmStart ?? 0.8,
     );
+    this.mediumTime += Math.max(0, dt);
     this.advect(this.velocity, dt, p.velocityDissipation);
     this.advect(this.dye, dt, p.dyeDissipation);
     this.hooks.afterAdvection?.({ gl, solver: this, params: p });
@@ -645,12 +655,20 @@ export class FluidSolver {
           ? this.createPass(ADVECTION_FRAGMENT, 'fluid advection + medium renewal', [
               ...manual,
               'MEDIUM_RENEWAL',
+              `MEDIUM_${this.appearance.toUpperCase()}`,
             ])
           : null,
       display: this.createPass(
-        this.mapping === 'displacement' ? SURFACE_FRAGMENT : DISPLAY_FRAGMENT,
+        this.mapping === 'displacement' ||
+          (this.mapping === 'lines' && ['water', 'honey'].includes(this.appearance))
+          ? SURFACE_FRAGMENT
+          : DISPLAY_FRAGMENT,
         'fluid display',
-        [...manual, `MEDIUM_${this.appearance.toUpperCase()}`],
+        [
+          ...manual,
+          `MEDIUM_${this.appearance.toUpperCase()}`,
+          ...(this.mapping === 'lines' ? ['NATIVE_TRACES'] : []),
+        ],
       ),
       copy: this.createPass(COPY_FRAGMENT, 'fluid copy'),
     };

@@ -22,11 +22,37 @@ float materialFbm(vec2 p) {
 }
 `;
 
+/** Periodic smoke noise lets fresh wisps drift in without a seam or a fixed rest image. */
+const SMOKE_NOISE = /* glsl */ `
+float smokeTileNoise(vec2 p, vec2 cells) {
+  vec2 i = floor(p);
+  vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  float a = materialHash(ivec2(mod(i, cells)));
+  float b = materialHash(ivec2(mod(i + vec2(1.0, 0.0), cells)));
+  float c = materialHash(ivec2(mod(i + vec2(0.0, 1.0), cells)));
+  float d = materialHash(ivec2(mod(i + vec2(1.0, 1.0), cells)));
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+float smokeFbm(vec2 uv, vec2 cells, vec2 offset) {
+  vec2 p = uv * cells + offset;
+  float n = 0.0, a = 0.5;
+  for (int i = 0; i < 5; i++) {
+    n += a * smokeTileNoise(p, cells);
+    p = p * 2.0 + vec2(7.1, 3.7);
+    cells *= 2.0; a *= 0.5;
+  }
+  return n;
+}
+`;
+
 /** Seeded texture is carried by the fluid, so its material detail follows the push. */
 export const MEDIUM_FRAGMENT = /* glsl */ `
 precision highp float;
 precision highp int;
 ${MEDIUM_NOISE}
+#ifdef MEDIUM_SMOKE
+${SMOKE_NOISE}
+#endif
 in vec2 vUv;
 uniform vec2 uAspect;
 uniform float uPhase;
@@ -36,11 +62,15 @@ void main() {
   vec2 p = vUv * uAspect;
   vec2 q = p + vec2(uPhase * 3.7, uPhase * 1.3);
 #ifdef MEDIUM_SMOKE
-  vec2 warp = vec2(materialFbm(q * 3.4), materialFbm(q * 3.4 + 23.0));
-  float cloud = materialFbm(q * 4.0 + warp * 2.5);
-  float wisps = materialFbm(q * vec2(18.0, 9.0) + warp * 4.0);
-  float density = smoothstep(0.24, 0.75, cloud) * (0.8 + 0.3 * wisps);
-  fragColor = vec4(vec3(density), 1.0);
+  vec2 cells = max(vec2(3.0), floor(uAspect * 5.0 + 0.5));
+  vec2 offset = vec2(uPhase * 3.7, uPhase * 1.3);
+  vec2 warp = vec2(smokeFbm(vUv, cells, offset), smokeFbm(vUv, cells, offset + 23.0));
+  vec2 warped = vUv + warp * 0.16;
+  float nearCloud = smokeFbm(warped, cells, offset);
+  float midCloud = smokeFbm(warped, cells, offset + 13.0);
+  float farCloud = smokeFbm(warped, cells, offset - 17.0);
+  vec3 density = pow(smoothstep(vec3(0.44), vec3(0.73), vec3(nearCloud, midCloud, farCloud)), vec3(1.2));
+  fragColor = vec4(density, 1.0);
 #elif defined(MEDIUM_HONEY)
   float folds = 0.7 * materialNoise(q * 3.0) + 0.3 * materialNoise(q * 6.0 + 17.0);
   float ridges = 0.5 + 0.5 * sin(p.y * 14.0 + folds * 9.0);

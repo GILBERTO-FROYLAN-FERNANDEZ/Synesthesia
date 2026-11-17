@@ -44,6 +44,7 @@ export class SmokeMaterial implements VisualMaterial {
 
   private solver: FluidSolver | null = null;
   private plume: SmokePlume | null = null;
+  private mapping: 'wake' | 'displacement' = 'wake';
   private quality: Quality = 'standard';
   private rng: Rng = createRng(0);
   private noiseSeed = 0;
@@ -63,6 +64,7 @@ export class SmokeMaterial implements VisualMaterial {
     try {
       this.dispose();
       this.quality = ctx.quality;
+      this.mapping = ctx.mapping === 'displacement' ? 'displacement' : 'wake';
       const solver = new FluidSolver(ctx.gl, {
         quality: ctx.quality,
         mapping: ctx.mapping,
@@ -149,6 +151,6 @@ export class SmokeMaterial implements VisualMaterial {
 
   /** The property mapping (a seam for tuning pages; always `smokeParams` in the app). */
   private paramsFor(props: PropertyValues): SmokeParams {
-    return smokeParams(props);
+    return smokeParams(props, this.mapping);
   }
 }

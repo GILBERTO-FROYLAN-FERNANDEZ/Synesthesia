@@ -95,13 +95,25 @@ export class HoneyMaterial implements VisualMaterial {
     this.applyPalette(params.palette);
     this.display = params.display;
     if (this.solver) this.solver.mediumDensity = props.density ?? 0.5;
-    if (this.body) this.body.params = params.body;
+    if (this.body)
+      this.body.params =
+        this.solver?.mapping === 'lines' ? { ...params.body, springStiffness: 0 } : params.body;
     // Always draw the same number of values per step so the random sequence depends
     // only on the step count, never on property values.
     this.phaseX += (this.rng() - 0.5) * JITTER_DRIFT;
     this.phaseY += (this.rng() - 0.5) * JITTER_DRIFT;
     this.solver?.step(frame, {
       ...params.step,
+      ...(this.solver?.mapping === 'lines'
+        ? {
+            dyeSpots: 0,
+            dyeStrokeLength: 0,
+            dyeAmount: params.step.dyeAmount * 2,
+            dyeDissipation: params.step.dyeDissipation * 3.5,
+            jitterAngle: 0,
+            jitterOffset: 0,
+          }
+        : {}),
       dt,
       jitterPhaseX: this.phaseX,
       jitterPhaseY: this.phaseY,

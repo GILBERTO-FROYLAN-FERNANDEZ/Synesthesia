@@ -70,11 +70,15 @@ function catchError(fn: () => unknown): FileFormatError {
 }
 
 describe('composition files', () => {
-  it('preserves mapping independently of the medium', () => {
-    const c = makeComposition();
-    c.visual.mapping = 'displacement';
-    expect(parseComposition(serializeComposition(c)).visual).toEqual(c.visual);
-  });
+  it.each(['displacement', 'lines'] as const)(
+    'preserves %s mapping independently of the medium',
+    (mapping) => {
+      const c = makeComposition();
+      c.visual.mapping = mapping;
+      c.visual.properties.size = 0.7;
+      expect(parseComposition(serializeComposition(c)).visual).toEqual(c.visual);
+    },
+  );
 
   it('migrates the prototype displacement medium to Water with displacement mapping', () => {
     const c = makeComposition();

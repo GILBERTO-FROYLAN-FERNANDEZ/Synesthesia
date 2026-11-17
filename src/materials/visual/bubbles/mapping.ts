@@ -28,7 +28,7 @@
  * bubbles live until they sink out of view, so the water stays full at every setting.
  */
 import { readProperty } from '../../properties';
-import type { PropertyValues, Quality } from '../../types';
+import type { PropertyValues, Quality, VisualMapping } from '../../types';
 import { hueTurns } from '../shared/hue';
 import { bubblesProperty } from './properties';
 
@@ -40,6 +40,12 @@ export const BUBBLE_TIER_CAPS: Readonly<Record<Quality, number>> = {
 };
 
 export interface BubbleSimParams {
+  /** A continuously staggered source above the frame, instead of a prefilled field. */
+  sourceFromTop?: boolean;
+  pathCount?: number;
+  pathLifetime?: number;
+  /** Bound the pushed motion, short sides/s; absent for the legacy wake. */
+  maxPushSpeed?: number;
   /** Bubbles in play. */
   count: number;
   /** 0..1: compressed (0), fitted (0.5), magnified (1). */
@@ -156,7 +162,13 @@ export function bubbleForceGain(v: number, i: number): number {
   return 1.68 * (1.15 - 0.3 * v) * bubbleIntensityGain(i);
 }
 
-export function bubbleParams(props: PropertyValues, quality: Quality): BubbleParams {
+export function bubbleParams(
+  props: PropertyValues,
+  quality: Quality,
+  mapping: VisualMapping = 'wake',
+): BubbleParams {
+  const lines = mapping === 'lines';
+  const displacement = mapping === 'displacement' || lines;
   const viscosity = readProperty(props, VISCOSITY);
   const elasticity = readProperty(props, ELASTICITY);
   const persistence = readProperty(props, PERSISTENCE);
@@ -173,21 +185,26 @@ export function bubbleParams(props: PropertyValues, quality: Quality): BubblePar
   return {
     sim: {
       count: bubbleCount(density, quality),
+      sourceFromTop: displacement && !lines,
+      ...(lines ? { pathCount: 12 + 84 * density, pathLifetime: 0.45 * 16 ** persistence } : {}),
+      ...(displacement
+        ? { maxPushSpeed: lines ? 0.18 + 0.12 * intensity : 0.45 + 0.5 * intensity }
+        : {}),
       range,
-      fallSpeed: bubbleFallSpeed(fallSpeed),
-      popRate: bubblePopRate(persistence),
-      forceGain: bubbleForceGain(viscosity, intensity),
-      drag,
+      fallSpeed: bubbleFallSpeed(fallSpeed) * (lines ? 1 : displacement ? 1.8 : 1),
+      popRate: displacement ? 0 : bubblePopRate(persistence),
+      forceGain: bubbleForceGain(viscosity, intensity) * (lines ? 0.7 : displacement ? 3.4 : 1),
+      drag: drag * (displacement ? 1.65 : 1),
       // Like Water's lag: longer would smear the close into the open and cancel both.
       lagSec: 0.12 * viscosity * viscosity,
-      spring: 40 * elasticity ** 4,
+      spring: displacement ? 0 : 40 * elasticity ** 4,
       wobbleFreq: 2.2 + 2.4 * elasticity,
       wobbleDamping: 0.55 - 0.47 * elasticity,
       wobbleDrive: 0.1 * elasticity * (1.4 - 0.6 * viscosity),
       walk: 0.004 + 0.05 * dispersion * dispersion,
       walkTime: 0.9,
       spread: spreadT * spreadT * (3 - 2 * spreadT),
-      scatter: 1.2 * dispersion * dispersion,
+      scatter: (displacement ? 0.2 : 1.2) * dispersion * dispersion,
       glowDecay: bubbleGlowDecay(persistence),
     },
     display: {

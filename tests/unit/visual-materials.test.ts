@@ -28,6 +28,8 @@ describe('visual material registry', () => {
     expect(getVisualMaterial(SIGNATURE_VIEW_ID)?.meta.name).toBe('Signature');
     const ids = listVisualMaterials().map((m) => m.meta.id);
     expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).not.toContain('filaments');
+    expect(getVisualMaterial('filaments')?.meta.name).toBe('Filaments');
   });
 
   it('create() returns fresh instances that match their metadata', () => {
@@ -102,7 +104,6 @@ describe('visual material registry', () => {
       'honey',
       'smoke',
       'bubbles',
-      'filaments',
     ]);
     for (const { meta } of materials) {
       const hue = meta.properties[meta.properties.length - 1];

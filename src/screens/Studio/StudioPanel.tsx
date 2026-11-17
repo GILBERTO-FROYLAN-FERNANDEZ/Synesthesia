@@ -10,6 +10,7 @@ import { MaterialPicker } from '../../ui/MaterialPicker';
 import { PropertyPanel } from '../../ui/PropertyPanel';
 import { SegmentedControl } from '../../ui/SegmentedControl';
 import { Toggle } from '../../ui/Toggle';
+import { VisualMappingControl } from './VisualMappingControl';
 import { ClipControl } from './ClipControl';
 import { MovementControls } from './MovementControls';
 import { CompositionSeed } from './CompositionSeed';
@@ -62,16 +63,16 @@ export function StudioPanel() {
       <ClipControl />
       <section className={styles.section} aria-label="Visual mapping">
         <h2 className={styles.sectionTitle}>Mapping</h2>
-        <SegmentedControl
-          label="Visual mapping"
-          options={['Wake', 'Displacement']}
-          value={composition.visual.mapping === 'displacement' ? 1 : 0}
-          onChange={(index) => store().setVisualMapping(index === 1 ? 'displacement' : 'wake')}
+        <VisualMappingControl
+          value={composition.visual.mapping}
+          onChange={(mapping) => store().setVisualMapping(mapping)}
         />
         <p className={styles.fieldNote}>
-          {composition.visual.mapping === 'displacement'
-            ? 'Movement pushes the medium already in the frame.'
-            : 'Movement leaves a wake in the medium.'}
+          {composition.visual.mapping === 'lines'
+            ? 'Sampled points follow the movement and leave fading trails.'
+            : composition.visual.mapping === 'displacement'
+              ? 'Movement pushes the medium already in the frame.'
+              : 'Movement leaves a wake in the medium.'}
         </p>
       </section>
       <MaterialSection

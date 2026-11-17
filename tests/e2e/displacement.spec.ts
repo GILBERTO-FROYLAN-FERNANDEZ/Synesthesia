@@ -19,6 +19,7 @@ declare global {
         props: Record<string, number>;
       }): Promise<string[]>;
       renderImage(options: {
+        repeatMotion?: boolean;
         materialId: string;
         mapping: 'displacement';
         kind: string;
@@ -64,12 +65,16 @@ for (const materialId of ['water', 'honey', 'smoke', 'bubbles', 'filaments']) {
     const initial = await render('still', 0);
     const still = await render('still', 80);
     const moving = await render('sweep', 80);
-    expect(initial.litFraction).toBeGreaterThan(0.01);
-    if (['water', 'honey', 'smoke'].includes(materialId))
+    if (materialId !== 'bubbles') expect(initial.litFraction).toBeGreaterThan(0.01);
+    else expect(still.litFraction).toBeGreaterThan(initial.litFraction);
+    if (['water', 'honey'].includes(materialId))
       expect(still.meanLuma).toBeCloseTo(initial.meanLuma, 2);
+    if (materialId === 'smoke') expect(still.litFraction).toBeGreaterThan(0.01);
     expect(moving.hash).not.toBe(still.hash);
     expect((await render('sweep', 80)).hash).toBe(moving.hash);
-    expect((await render('still', 0, 8)).hash).not.toBe(initial.hash);
+    expect((await render('still', materialId === 'bubbles' ? 80 : 0, 8)).hash).not.toBe(
+      materialId === 'bubbles' ? still.hash : initial.hash,
+    );
     if (['water', 'honey', 'smoke'].includes(materialId))
       expect((await render('still', 0, 7, { density: 1 })).meanLuma).toBeGreaterThan(
         initial.meanLuma,
@@ -84,6 +89,7 @@ test('live mapping is separate from the medium and survives medium changes', asy
   for (const medium of ['Water', 'Honey', 'Smoke']) {
     await page.getByRole('button', { name: /^Visual / }).click();
     await expect(page.getByRole('option', { name: /Displacement/ })).toHaveCount(0);
+    await expect(page.getByRole('option', { name: /Filaments/ })).toHaveCount(0);
     await page.getByRole('option', { name: new RegExp(`^${medium}`) }).click();
     await expect(mapping.getByRole('radio', { name: 'Displacement', exact: true })).toBeChecked();
   }
@@ -245,3 +251,76 @@ for (const materialId of ['water', 'honey', 'smoke']) {
     expect(metrics.motion).toBeGreaterThan(0.005);
   });
 }
+
+test('bubble source falls from the top and remains interactive', async ({ page }, testInfo) => {
+  await page.goto('./dev/materials/?autoplay=0');
+  await page.waitForFunction(() => window.spVisual?.ready);
+  const frames = await page.evaluate(() =>
+    window.spVisual.renderFilmstrip({
+      materialId: 'bubbles',
+      mapping: 'displacement',
+      kind: 'still',
+      repeatMotion: false,
+      steps: 600,
+      checkpoints: [0, 60, 240],
+      seed: 7,
+      width: 640,
+      height: 480,
+      quality: 'standard',
+      props: {},
+    }),
+  );
+  const occupancy = await page.evaluate(async (urls) => {
+    const result: { lit: number; middle: number; lowest: number }[] = [];
+    for (const src of urls) {
+      const image = new Image();
+      image.src = src;
+      await image.decode();
+      const canvas = new OffscreenCanvas(image.width, image.height);
+      const context = canvas.getContext('2d')!;
+      context.drawImage(image, 0, 0);
+      const pixels = context.getImageData(0, 0, image.width, image.height).data;
+      let lit = 0,
+        middle = 0,
+        lowest = 0;
+      for (let y = 0; y < image.height; y++) {
+        for (let x = 0; x < image.width; x++) {
+          const i = (y * image.width + x) * 4;
+          if (Math.max(pixels[i], pixels[i + 1], pixels[i + 2]) < 20) continue;
+          lit++;
+          lowest = Math.max(lowest, y / image.height);
+          if (y > image.height * 0.4 && y < image.height * 0.6) middle++;
+        }
+      }
+      result.push({ lit, middle, lowest });
+    }
+    return result;
+  }, frames);
+  expect(occupancy[0].lit).toBe(0);
+  expect(occupancy[1].lit).toBeGreaterThan(50);
+  expect(occupancy[1].lowest).toBeLessThan(0.35);
+  expect(occupancy[2].middle).toBeGreaterThan(50);
+  expect(occupancy[3].middle).toBeGreaterThan(50);
+  const moved = await page.evaluate(() =>
+    window.spVisual.renderImage({
+      materialId: 'bubbles',
+      mapping: 'displacement',
+      kind: 'sweep',
+      repeatMotion: true,
+      steps: 600,
+      seed: 7,
+      width: 640,
+      height: 480,
+      quality: 'standard',
+    }),
+  );
+  expect(moved).not.toBe(frames[3]);
+  await writeFile(
+    testInfo.outputPath('falling-bubbles.png'),
+    Buffer.from(frames[3].split(',')[1], 'base64'),
+  );
+  await writeFile(
+    testInfo.outputPath('pushed-bubbles.png'),
+    Buffer.from(moved.split(',')[1], 'base64'),
+  );
+});

@@ -27,7 +27,7 @@ import {
   type JsonObject,
   type Migration,
 } from '../signature/serialize';
-import type { PropertyValues } from '../materials/types';
+import { VISUAL_MAPPINGS, type PropertyValues } from '../materials/types';
 import {
   COMPOSITION_FORMAT,
   COMPOSITION_VERSION,
@@ -93,7 +93,7 @@ function readMaterial(value: unknown, path: string, fail: Fail): MaterialSetting
     materialVersion: readNumber(o, 'materialVersion', path, fail, { integer: true, min: 0 }),
     properties: readProperties(o.properties, `${path}.properties`, fail),
     ...(path === 'visual' && o.mapping !== undefined
-      ? { mapping: readChoice(o, 'mapping', path, fail, ['wake', 'displacement'] as const) }
+      ? { mapping: readChoice(o, 'mapping', path, fail, VISUAL_MAPPINGS) }
       : {}),
   };
 }

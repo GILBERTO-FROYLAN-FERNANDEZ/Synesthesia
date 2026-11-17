@@ -54,14 +54,16 @@ void main() {
   vec2 slope = vec2(r - l, t - b) / footprint;
   vec3 c;
 #ifdef MEDIUM_SMOKE
-  // Broad light penetrates thin wisps; denser folds obscure the smoke behind them.
-  float opticalDepth = h * (2.0 + 4.0 * uMediumDensity);
-  float opacity = 1.0 - exp(-opticalDepth);
-  float shadow = heightAt(vUv + vec2(-0.025, 0.035) / uAspectScale);
-  float light = clamp(0.95 - shadow * 0.55 + 0.4 * (h - shadow), 0.4, 1.0);
-  vec3 background = vec3(0.018, 0.023, 0.03);
-  vec3 scatter = mix(vec3(0.24, 0.28, 0.33), vec3(0.77, 0.79, 0.8), light);
-  c = mix(background, scatter, opacity);
+  // Composite translucent density at three depths, with soft self-shadowing. There
+  // is no surface normal or specular light: thin edges disappear into the air.
+  vec3 density = max(state.rgb, 0.0);
+  vec3 shadow = medium(vUv + vec2(-0.018, 0.025) / uAspectScale).rgb;
+  vec3 alpha = vec3(1.0) - exp(-density * (1.4 + 2.8 * uMediumDensity));
+  vec3 light = clamp(vec3(0.95) - shadow * 0.5, 0.45, 0.95);
+  c = vec3(0.012, 0.018, 0.025);
+  c = mix(c, vec3(0.53, 0.59, 0.65) * light.b, alpha.b);
+  c = mix(c, vec3(0.68, 0.71, 0.74) * light.g, alpha.g);
+  c = mix(c, vec3(0.8, 0.81, 0.82) * light.r, alpha.r);
 #else
 #ifdef MEDIUM_HONEY
   vec3 n = normalize(vec3(-slope * 0.13, 1.0));
@@ -106,6 +108,11 @@ void main() {
   float y = dot(c, vec3(0.2126, 0.7152, 0.0722));
   c = max(mix(vec3(y), c, uSaturation), 0.0) * uExposure;
   c = vec3(1.0) - exp(-c);
+#ifdef NATIVE_TRACES
+  // Unoccupied water stays transparent to the black stage; only deposited streams
+  // receive the material's refraction, surface light, and fluid mixing.
+  c *= smoothstep(0.003, 0.045, h);
+#endif
   fragColor = vec4(c, 1.0);
 }
 `;

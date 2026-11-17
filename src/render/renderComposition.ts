@@ -1,3 +1,4 @@
+import { visualMappingProperties } from '../materials/visual/lines/properties';
 /**
  * Offline render of one composition to MP4 (SPEC 10.2). This module loads Mediabunny and
  * every material, so import it lazily; src/render/index.ts does that for you.
@@ -201,7 +202,7 @@ async function materialPicture(
     const seed = visualSeed(composition.seed);
     const props: PropertyValues = completeValues(
       composition.visual.properties,
-      entry.meta.properties,
+      visualMappingProperties(entry.meta.properties, composition.visual.mapping),
     );
     const created = entry.create();
     material = created;

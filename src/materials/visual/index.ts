@@ -7,8 +7,8 @@ import { smokeEntry } from './smoke';
 import { waterEntry } from './water';
 
 /**
- * Every visual material, in picker order. V0 "Signature" (the diagnostic view) is
- * listed separately from the expressive materials.
+ * Installed visual materials, including retired ones needed by saved compositions.
+ * The registry determines which are offered in pickers.
  */
 export const VISUAL_MATERIALS: VisualMaterialEntry[] = [
   waterEntry,

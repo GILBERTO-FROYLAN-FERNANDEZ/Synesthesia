@@ -22,6 +22,7 @@ uniform sampler2D uPalette;  // direction colors, indexed by turns (0 = right, 1
 uniform vec3 uRestColor;
 uniform float uExposure;
 uniform float uSaturation;
+uniform float uTintStrength;
 uniform float uGlowGain;     // extra light at full glow
 ${HUE_GLSL}
 out vec2 vLocal;
@@ -52,7 +53,7 @@ void main () {
   vec3 tint = uRestColor;
   if (glow > 1e-5) {
     float turn = atan(g.y, g.x) * 0.15915494309;
-    tint = mix(uRestColor, textureLod(uPalette, vec2(turn, 0.5), 0.0).rgb, amount);
+    tint = mix(uRestColor, textureLod(uPalette, vec2(turn, 0.5), 0.0).rgb, amount * uTintStrength);
   }
   // Hue turns the rim's color; the highlight stays white.
   tint = turnHue(tint);
@@ -70,6 +71,7 @@ in vec2 vLocal;
 in float vRadiusPx;
 in vec3 vRim;
 in float vHighlight;
+uniform float uSoftBlend;
 out vec4 fragColor;
 
 void main () {
@@ -97,6 +99,13 @@ void main () {
   float detail = smoothstep(1.2, 3.5, vRadiusPx);
   vec3 dotColor = (vRim + 0.25 * vec3(vHighlight)) * (0.6 * exp(-2.5 * r * r));
   color = mix(dotColor, color, detail);
-  fragColor = vec4(color * edge, 1.0);
+  if (uSoftBlend > 0.0) {
+    // Premultiplied coverage keeps overlapping bubbles from adding into a neon flare.
+    color = vec3(1.0) - exp(-max(color, 0.0));
+    float alpha = max(color.r, max(color.g, color.b)) * edge;
+    fragColor = vec4(color * edge, alpha);
+  } else {
+    fragColor = vec4(color * edge, 1.0);
+  }
 }
 `;

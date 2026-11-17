@@ -94,6 +94,14 @@ export class WaterMaterial implements VisualMaterial {
     this.phaseY += (this.rng() - 0.5) * JITTER_DRIFT;
     this.solver?.step(frame, {
       ...params.step,
+      ...(this.solver?.mapping === 'lines'
+        ? {
+            dyeSpots: 0,
+            dyeDissipation: params.step.dyeDissipation * 2,
+            jitterAngle: 0,
+            jitterOffset: 0,
+          }
+        : {}),
       dt,
       jitterPhaseX: this.phaseX,
       jitterPhaseY: this.phaseY,

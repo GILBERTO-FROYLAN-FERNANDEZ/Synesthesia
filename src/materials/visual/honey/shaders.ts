@@ -17,6 +17,8 @@ uniform float uWeights[${BLUR_TAPS + 1}];  // centre, then taps 1..${BLUR_TAPS} 
 ${
   withSpring
     ? `uniform sampler2D uDisplacement;  // short sides, same grid as velocity
+uniform sampler2D uDye;
+uniform float uGravity;
 uniform float uSpring;               // velocity change per short side of displacement
 uniform float uMaxSpeed;             // cells per second`
     : ''
@@ -34,6 +36,8 @@ ${
   withSpring
     ? `  // The spring pulls displaced honey back toward where it was.
   v -= uSpring * texture(uDisplacement, vUv).xy;
+  float presence = 1.0 - exp(-dot(texture(uDye, vUv).rgb, vec3(0.2126, 0.7152, 0.0722)) * 5.0);
+  v.y -= uGravity * presence;
   float s = length(v);
   if (s > uMaxSpeed) v *= uMaxSpeed / s;`
     : ''
