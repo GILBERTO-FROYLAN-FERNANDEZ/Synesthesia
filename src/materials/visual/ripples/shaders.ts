@@ -38,6 +38,11 @@ float smokeFbm(vec2 p) {
   return 0.57 * smokeNoise(p) + 0.28 * smokeNoise(p * 2.07 + 13.2)
        + 0.15 * smokeNoise(p * 4.13 - 7.4);
 }
+float rippleSoftbox(vec3 reflected, vec2 center, vec2 size) {
+  vec2 p = reflected.xy / max(0.18, reflected.z + 0.65);
+  vec2 d = abs(p - center) / size;
+  return exp(-pow(d.x, 6.0) - pow(d.y, 6.0));
+}
 void main() {
   float r = length(vLocal), angle = atan(vLocal.y, vLocal.x);
   float phase = vLook.y * 6.2831853;
@@ -103,13 +108,32 @@ void main() {
     fragColor = vec4(vec3(height), 1.0);
     return;
   } else {
-    float d = (r - radius) / width;
-    float crest = exp(-d * d);
-    float inner = exp(-pow((r - radius * 0.72) / (width * 0.7), 2.0));
-    float lighting = 0.5 + 0.5 * dot(normalize(vLocal + vec2(0.00001)), normalize(vec2(-0.5, 0.8)));
-    alpha = crest * (0.38 + 0.52 * lighting) + inner * 0.28;
-    color *= 0.55 + lighting * 0.65;
-    color += vec3(0.75, 0.86, 0.94) * crest * pow(lighting, 5.0) * uSurfaceLight;
+    // Analytic wave height provides the same reflective/refraction-inspired response
+    // as the newer Water surface, rather than a uniformly colored circular stroke.
+    float irregular = 0.008 * sin(angle * 3.0 + phase) + 0.004 * sin(angle * 7.0 - phase + vAge);
+    float radial = r - radius * irregular;
+    float d = (radial - radius) / width;
+    float di = (radial - radius * 0.72) / (width * 0.7);
+    float crest = exp(-d * d * 0.65);
+    float inner = exp(-di * di * 0.8);
+    float slope = d * crest * 1.7 + di * inner * 0.55;
+    vec2 direction = normalize(vLocal + vec2(0.00001));
+    vec3 normal = normalize(vec3(-direction * slope, 1.0));
+    vec3 reflected = reflect(vec3(0.0, 0.0, -1.0), normal);
+    float fresnel = 0.02 + 0.98 * pow(1.0 - normal.z, 5.0);
+    float key = rippleSoftbox(reflected, vec2(-0.25, 0.32), vec2(0.17, 0.43));
+    float fill = rippleSoftbox(reflected, vec2(0.6, -0.2), vec2(0.06, 0.5));
+    vec3 deep = mix(vec3(0.012, 0.10, 0.15), uTint * 0.22, 0.35);
+    vec3 shallow = mix(vec3(0.12, 0.48, 0.49), uTint * 0.65, 0.3);
+    color = mix(deep, shallow, clamp(crest * 0.8 + inner * 0.25, 0.0, 1.0));
+    color *= 0.65 + 0.35 * normal.z;
+    vec3 sky = mix(vec3(0.18, 0.29, 0.38), vec3(0.7, 0.83, 0.9), smoothstep(-0.4, 0.8, reflected.y));
+    color = mix(color, sky, fresnel);
+    float caustic = pow(max(0.0, 1.0 - abs(d + 0.5) * 1.5), 3.0) * (0.75 + 0.25 * sin(angle * 4.0 + phase));
+    float relief = 0.25 + 1.5 * uSurfaceLight;
+    color += (key * 1.5 + fill * 0.3) * relief;
+    color += vec3(0.42, 0.76, 0.72) * caustic * 0.4 * relief;
+    alpha = clamp(crest * 0.75 + inner * 0.28 + key * crest * 0.15, 0.0, 0.95);
   }
   alpha *= life * min(1.0, vLook.x) * (1.0 - smoothstep(0.96, 1.0, r));
   if (alpha < 0.001) discard;

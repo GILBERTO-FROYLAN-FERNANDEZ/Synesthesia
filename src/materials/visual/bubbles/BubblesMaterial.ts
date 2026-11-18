@@ -49,13 +49,8 @@ export const BUBBLES_META = {
 
 /** Floats per bubble in the instance buffer: centre, glow, shape matrix, light. */
 const FLOATS_PER_BUBBLE = 10;
-/** Motion stretch per short side per second of speed, and its cap. */
-const STRETCH_PER_SPEED = 2;
-const STRETCH_MAX = 2.2;
 /** Pearl rims at rest. */
 const REST_COLOR: readonly [number, number, number] = [0.8, 0.87, 0.96];
-/** Extra light on a fully glowing bubble. */
-const GLOW_GAIN = 3.5;
 /** A popping bubble swells by this much and flashes by this much before it fades. */
 const POP_SWELL = 0.45;
 const POP_FLASH = 1.5;
@@ -76,7 +71,6 @@ export class BubblesMaterial implements VisualMaterial {
   private sim: BubbleSim | null = null;
   private instances = new Float32Array(0);
   private quality: Quality = 'standard';
-  private displacement = false;
   private mapping: VisualMapping = 'wake';
   private simParams: BubbleSimParams;
   private display: BubbleDisplayParams;
@@ -98,8 +92,6 @@ export class BubblesMaterial implements VisualMaterial {
       this.res = res;
       this.quality = ctx.quality;
       this.mapping = ctx.mapping ?? 'wake';
-      this.displacement =
-        ctx.mapping === 'displacement' || ctx.mapping === 'lines' || ctx.mapping === 'warping';
       this.program = createProgram(res, BUBBLE_VERTEX, BUBBLE_FRAGMENT, { name: 'bubbles' });
       this.paletteTex = createTexture(
         res,
@@ -191,12 +183,12 @@ export class BubblesMaterial implements VisualMaterial {
     gl.uniform3f(program.u('uRestColor'), REST_COLOR[0], REST_COLOR[1], REST_COLOR[2]);
     gl.uniform1f(program.u('uExposure'), Math.max(0, this.display.exposure));
     gl.uniform1f(program.u('uSaturation'), Math.max(0, this.display.saturation));
-    gl.uniform1f(program.u('uGlowGain'), this.displacement ? 0.65 : GLOW_GAIN);
-    gl.uniform1f(program.u('uTintStrength'), this.displacement ? 0.3 : 1);
-    gl.uniform1f(program.u('uSoftBlend'), this.displacement ? 1 : 0);
+    gl.uniform1f(program.u('uGlowGain'), 0.65);
+    gl.uniform1f(program.u('uTintStrength'), 0.3);
+    gl.uniform1f(program.u('uSoftBlend'), 1);
     this.hueTurn.apply(gl, program.u('uHueTurn'), this.display.hue);
     gl.enable(gl.BLEND);
-    gl.blendFunc(gl.ONE, this.displacement ? gl.ONE_MINUS_SRC_ALPHA : gl.ONE);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, count);
     gl.disable(gl.BLEND);
     gl.bindVertexArray(null);
@@ -239,12 +231,7 @@ export class BubblesMaterial implements VisualMaterial {
       const tvy = vy[i] + wy[i] - fallSpeed * fall[i];
       const speed = Math.sqrt(tvx * tvx + tvy * tvy);
       // Motion stretch along the velocity (slightly thinner across).
-      const along =
-        1 +
-        Math.min(
-          this.displacement ? 0.28 : STRETCH_MAX,
-          speed * (this.displacement ? 0.45 : STRETCH_PER_SPEED),
-        );
+      const along = 1 + Math.min(0.28, speed * 0.45);
       const across = 1 / Math.sqrt(Math.sqrt(along));
       let mx = 0;
       let my = 1;
@@ -258,7 +245,7 @@ export class BubblesMaterial implements VisualMaterial {
       const s01 = ka * mx * my;
       const s11 = across + ka * my * my;
       // S_wobble = (1 − w/2)·I + (3w/2)·a aᵀ
-      const w = wob[i] * (this.displacement ? 0.3 : 1);
+      const w = wob[i] * 0.3;
       const base = 1 - 0.5 * w;
       const kw = 1.5 * w;
       const ax = axX[i];
@@ -292,9 +279,7 @@ export class BubblesMaterial implements VisualMaterial {
       out[o + 6] = r * (s00 * w01 + s01 * w11);
       out[o + 7] = r * (s01 * w01 + s11 * w11);
       // Smaller (farther) bubbles are a little dimmer.
-      out[o + 8] = this.displacement
-        ? 0.48 + 0.3 * Math.min(1.6, size[i])
-        : 0.3 + 0.26 * Math.min(1.6, size[i]);
+      out[o + 8] = 0.48 + 0.3 * Math.min(1.6, size[i]);
       out[o + 9] = alpha;
       o += FLOATS_PER_BUBBLE;
     }

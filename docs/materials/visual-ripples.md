@@ -5,7 +5,7 @@ Movement emits expanding effects at active locations. Quiet capture noise is ign
 short local cooldowns prevent emission on every frame while allowing dense overlapping waves. Stronger movement produces more events. No movement means no new
 events, while existing effects expand and fade independently.
 
-- Water: concentric wave crests with directional surface highlights.
+- Water: expanding wave crests with teal translucency, reflected light, and focused highlights matching the newer Water surface. Subtle irregularity keeps the crests from reading as uniform blue outlines.
 - Honey: rounded amber dollops that slowly spread and flatten into uneven puddles, that combine into shared pools where they overlap, with translucent amber color that becomes richer in overlapping areas, and soft directional shoulder highlights for slight depth, without dark sculpted shading or sharp glossy spots.
 - Smoke: textured smoke loops with billowing, fibrous edges and uneven density. Compact rings expand and rise slowly, with a roughly 4.5-second baseline lifetime. Each ring continually softens and loses density as it grows, progressing from a small defined ring into a large faint wisp rather than holding uniform brightness. Smoke emissions are staggered, with slightly varied individual retention times and a consistent expansion rate.
 - Bubbles: one bubble per touch event that expands in place, then swells slightly and breaks its shell into fragments without brightening near the end of its lifetime.

@@ -169,7 +169,7 @@ export class RipplesMaterial implements VisualMaterial {
               ? 0.011
               : this.style === 2
                 ? 0.005 * (0.65 + 1.3 * fraction)
-                : 0.004) *
+                : 0.006) *
             (0.6 + this.value('size'));
       const outer =
         this.style === 3

@@ -109,8 +109,8 @@ void main() {
   c = max(mix(vec3(y), c, uSaturation), 0.0) * uExposure;
   c = vec3(1.0) - exp(-c);
 #ifdef NATIVE_TRACES
-  // Unoccupied water stays transparent to the black stage; only deposited streams
-  // receive the material's refraction, surface light, and fluid mixing.
+  // Unoccupied regions stay black in Wake and Lines; deposited trails receive the
+  // same material shading as the medium already present in Displacement.
   c *= smoothstep(0.003, 0.045, h);
 #endif
   fragColor = vec4(c, 1.0);

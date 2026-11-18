@@ -83,7 +83,6 @@ import {
   BASE_VERTEX,
   COPY_FRAGMENT,
   CURL_FRAGMENT,
-  DISPLAY_FRAGMENT,
   DIVERGENCE_FRAGMENT,
   DYE_FRAGMENT,
   FORCE_FRAGMENT,
@@ -658,18 +657,11 @@ export class FluidSolver {
               `MEDIUM_${this.appearance.toUpperCase()}`,
             ])
           : null,
-      display: this.createPass(
-        this.mapping === 'displacement' ||
-          (this.mapping === 'lines' && ['water', 'honey'].includes(this.appearance))
-          ? SURFACE_FRAGMENT
-          : DISPLAY_FRAGMENT,
-        'fluid display',
-        [
-          ...manual,
-          `MEDIUM_${this.appearance.toUpperCase()}`,
-          ...(this.mapping === 'lines' ? ['NATIVE_TRACES'] : []),
-        ],
-      ),
+      display: this.createPass(SURFACE_FRAGMENT, 'fluid display', [
+        ...manual,
+        `MEDIUM_${this.appearance.toUpperCase()}`,
+        ...(this.mapping !== 'displacement' ? ['NATIVE_TRACES'] : []),
+      ]),
       copy: this.createPass(COPY_FRAGMENT, 'fluid copy'),
     };
   }
