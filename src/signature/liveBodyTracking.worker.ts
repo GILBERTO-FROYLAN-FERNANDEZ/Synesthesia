@@ -75,7 +75,7 @@ async function initializeModel(): Promise<PoseLandmarkerInstance> {
 
     console.log('MediaPipe package loaded');
     const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm",
+        new URL('/vendor/mediapipe/', self.location.origin).href,
         true
     );
 
