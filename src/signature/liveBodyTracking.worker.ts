@@ -35,15 +35,6 @@ function getModel(): Promise<PoseLandmarkerInstance> {
   return modelPromise;
 }
 
-let initError: unknown = null;
-try {
-} catch (error) {
-  initError = error;
-  const msg = error instanceof Error ? error.message : String(error);
-  console.error('PoseLandmarker initialization failed:', error);
-  self.postMessage({ error: true, msg } satisfies LiveFrameResponse);
-}
-
 export interface LiveBodyTrackingFrameRequest {
   opencvUrl: string;
   width: number;
@@ -58,7 +49,7 @@ self.onmessage = async ({ data }: MessageEvent<LiveBodyTrackingFrameRequest>) =>
     const poseLandmarker = await getModel();
     const frame = new ImageData(data.rgba, data.width, data.height);
     const res = poseLandmarker.detectForVideo(frame, data.timestamp * 1000);
-    const masks = createMasksFromLandmarks(res, data.width, data.height);
+    const masks = createMasksFromLandmarks(res);
     maskData(masks, data)
 
     await computeSignatureFrame(data);
@@ -95,7 +86,7 @@ async function initializeModel(): Promise<PoseLandmarkerInstance> {
 /**
  * Creates segmentation masks from the landmarks detected by the PoseLandmarker model
  */
-function createMasksFromLandmarks(res: PoseLandmarkerResult, width: number, height: number): Uint8Array<ArrayBufferLike>[] {
+function createMasksFromLandmarks(res: PoseLandmarkerResult): Uint8Array<ArrayBufferLike>[] {
     const segmentation_masks = res.segmentationMasks;
     if (!segmentation_masks || segmentation_masks.length === 0) {
         throw new Error("Segmentation masks not available");

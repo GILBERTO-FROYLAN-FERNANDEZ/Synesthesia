@@ -1,12 +1,8 @@
-import { analysisSize, rgbaToGray } from './frameGeometry';
+import { analysisSize } from './frameGeometry';
 import type { LiveFrameResponse } from './live.worker';
 import type { LiveBodyTrackingFrameRequest } from './liveBodyTracking.worker';
 import {
-  DEFAULT_SAMPLER_CONFIG,
-  FEATURE_NAMES,
-  type FeatureName,
   type SignatureFrame,
-  type SignatureSampler,
 } from './types';
 
 export function trackLiveBodyTrackingVideo(
