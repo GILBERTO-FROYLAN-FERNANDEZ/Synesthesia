@@ -70,7 +70,7 @@ function catchError(fn: () => unknown): FileFormatError {
 }
 
 describe('composition files', () => {
-  it.each(['displacement', 'lines', 'ripples'] as const)(
+  it.each(['displacement', 'lines', 'ripples', 'warping'] as const)(
     'preserves %s mapping independently of the medium',
     (mapping) => {
       const c = makeComposition();

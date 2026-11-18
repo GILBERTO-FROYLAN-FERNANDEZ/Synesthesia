@@ -29,6 +29,7 @@ out vec2 vLocal;
 out float vRadiusPx;
 out vec3 vRim;
 out float vHighlight;
+flat out float vMist;
 
 void main () {
   int id = gl_VertexID;
@@ -59,7 +60,8 @@ void main () {
   tint = turnHue(tint);
   float luma = dot(tint, vec3(0.2126, 0.7152, 0.0722));
   tint = max(mix(vec3(luma), tint, uSaturation), 0.0);
-  float light = aLight.x * aLight.y * uExposure;
+  vMist = aLight.x < 0.0 ? 1.0 : 0.0;
+  float light = abs(aLight.x) * aLight.y * uExposure;
   vRim = tint * light * (1.0 + uGlowGain * amount);
   vHighlight = light * (1.0 + 0.5 * amount);
 }
@@ -71,11 +73,18 @@ in vec2 vLocal;
 in float vRadiusPx;
 in vec3 vRim;
 in float vHighlight;
+flat in float vMist;
 uniform float uSoftBlend;
 out vec4 fragColor;
 
 void main () {
   float r = length(vLocal);
+  if (vMist > 0.5) {
+    float soft = exp(-r * r * 4.0) * (1.0 - smoothstep(0.7, 1.0, r));
+    float alpha = clamp(vHighlight * soft, 0.0, 0.65);
+    fragColor = vec4(vec3(0.65, 0.76, 0.82) * alpha, alpha);
+    return;
+  }
   // Coverage of the bubble's outer edge, over one device pixel.
   float edge = clamp((1.0 - r) * vRadiusPx + 0.5, 0.0, 1.0);
   if (edge <= 0.0) discard;

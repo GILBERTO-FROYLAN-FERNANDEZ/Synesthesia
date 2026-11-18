@@ -68,19 +68,21 @@ export function StudioPanel() {
           onChange={(mapping) => store().setVisualMapping(mapping)}
         />
         <p className={styles.fieldNote}>
-          {composition.visual.mapping === 'ripples'
-            ? 'Movement creates expanding ripples that soften and fade.'
-            : composition.visual.mapping === 'lines'
-              ? 'Sampled points follow the movement and leave fading trails.'
-              : composition.visual.mapping === 'displacement'
-                ? 'Movement pushes the medium already in the frame.'
-                : 'Movement leaves a wake in the medium.'}
+          {composition.visual.mapping === 'warping'
+            ? 'Movement deforms the scene, which gradually returns to rest.'
+            : composition.visual.mapping === 'ripples'
+              ? 'Movement creates expanding ripples that soften and fade.'
+              : composition.visual.mapping === 'lines'
+                ? 'Sampled points follow the movement and leave fading trails.'
+                : composition.visual.mapping === 'displacement'
+                  ? 'Movement pushes the medium already in the frame.'
+                  : 'Movement leaves a wake in the medium.'}
         </p>
       </section>
       <MaterialSection
         field="visual"
         kind="Visual"
-        options={visualMetas().map((meta) => ({
+        options={visualMetas(composition.visual.mapping).map((meta) => ({
           ...meta,
           disabled: composition.visual.mapping === 'ripples' && meta.id === 'honey',
           disabledReason:

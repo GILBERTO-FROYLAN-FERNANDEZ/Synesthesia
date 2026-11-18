@@ -26,6 +26,7 @@ import {
 } from '../shared/gl';
 import { HueTurn } from '../shared/hue';
 import { PALETTE_SIZE, WAKE_PALETTE_BYTES } from '../shared/wakePalette';
+import { ContactBubbleSim } from './ContactBubbleSim';
 import { BubbleSim } from './BubbleSim';
 import { PathBubbleSim } from './PathBubbleSim';
 import {
@@ -97,7 +98,8 @@ export class BubblesMaterial implements VisualMaterial {
       this.res = res;
       this.quality = ctx.quality;
       this.mapping = ctx.mapping ?? 'wake';
-      this.displacement = ctx.mapping === 'displacement' || ctx.mapping === 'lines';
+      this.displacement =
+        ctx.mapping === 'displacement' || ctx.mapping === 'lines' || ctx.mapping === 'warping';
       this.program = createProgram(res, BUBBLE_VERTEX, BUBBLE_FRAGMENT, { name: 'bubbles' });
       this.paletteTex = createTexture(
         res,
@@ -107,7 +109,9 @@ export class BubblesMaterial implements VisualMaterial {
         { filter: gl.LINEAR, wrap: gl.REPEAT, data: WAKE_PALETTE_BYTES },
       );
       const capacity = BUBBLE_TIER_CAPS[ctx.quality];
-      this.instances = new Float32Array(capacity * FLOATS_PER_BUBBLE);
+      this.instances = new Float32Array(
+        (capacity + (ctx.mapping === 'warping' ? 2048 : 0)) * FLOATS_PER_BUBBLE,
+      );
       this.vao = res.vertexArray();
       this.buffer = res.buffer();
       gl.bindVertexArray(this.vao);
@@ -126,9 +130,11 @@ export class BubblesMaterial implements VisualMaterial {
       gl.bindVertexArray(null);
       gl.bindBuffer(gl.ARRAY_BUFFER, null);
       this.sim =
-        ctx.mapping === 'lines'
-          ? new PathBubbleSim(capacity, ctx.width, ctx.height)
-          : new BubbleSim(capacity, ctx.width, ctx.height);
+        ctx.mapping === 'warping'
+          ? new ContactBubbleSim(capacity, ctx.width, ctx.height)
+          : ctx.mapping === 'lines'
+            ? new PathBubbleSim(capacity, ctx.width, ctx.height)
+            : new BubbleSim(capacity, ctx.width, ctx.height);
       this.setProperties(baselineValues(BUBBLES_PROPERTIES));
       this.reset(ctx.seed);
       return Promise.resolve();
@@ -291,6 +297,23 @@ export class BubblesMaterial implements VisualMaterial {
         : 0.3 + 0.26 * Math.min(1.6, size[i]);
       out[o + 9] = alpha;
       o += FLOATS_PER_BUBBLE;
+    }
+    if (sim instanceof ContactBubbleSim) {
+      const mist = sim.mist;
+      for (let i = 0; i < mist.count && o + FLOATS_PER_BUBBLE <= out.length; i++) {
+        const t = mist.age[i] / mist.lifetime[i];
+        if (!(t >= 0 && t < 1)) continue;
+        const r = mist.radius[i] * (1 + t * 1.8);
+        out[o] = mist.x[i];
+        out[o + 1] = mist.y[i];
+        out[o + 2] = out[o + 3] = 0;
+        out[o + 4] = r;
+        out[o + 5] = out[o + 6] = 0;
+        out[o + 7] = r * (mist.radius[i] < 0.003 ? 1.8 : 1.2);
+        out[o + 8] = -1; // Soft mist sprite, rather than a bubble rim.
+        out[o + 9] = (mist.radius[i] < 0.003 ? 0.45 : 0.22) * (1 - t) ** 1.4;
+        o += FLOATS_PER_BUBBLE;
+      }
     }
     return o / FLOATS_PER_BUBBLE;
   }

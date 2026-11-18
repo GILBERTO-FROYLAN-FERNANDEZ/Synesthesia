@@ -1,5 +1,6 @@
 import type { PropertyValues, VisualContext, VisualMaterial, VisualMaterialEntry } from '../types';
 import type { SignatureFrame } from '../../signature/types';
+import { isWarpScene } from './warping';
 import { RipplesMaterial } from './ripples/RipplesMaterial';
 import { SampledMedium } from './lines/SampledMedium';
 import { LinesMaterial } from './lines/LinesMaterial';
@@ -18,9 +19,13 @@ export function withVisualMapping(entry: VisualMaterialEntry): VisualMaterialEnt
         async init(ctx: VisualContext) {
           renderer?.dispose();
           renderer =
-            ctx.mapping === 'ripples' && entry.meta.id !== 'signature'
+            ctx.mapping === 'ripples' &&
+            entry.meta.id !== 'signature' &&
+            !isWarpScene(entry.meta.id)
               ? new RipplesMaterial(entry.meta)
-              : ctx.mapping === 'lines' && entry.meta.id !== 'signature'
+              : ctx.mapping === 'lines' &&
+                  entry.meta.id !== 'signature' &&
+                  !isWarpScene(entry.meta.id)
                 ? ['water', 'honey'].includes(entry.meta.id)
                   ? new SampledMedium(entry)
                   : entry.meta.id === 'bubbles'

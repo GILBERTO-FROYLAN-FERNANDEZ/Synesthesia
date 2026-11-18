@@ -1,3 +1,4 @@
+import { visualIdForMapping } from '../materials/registry';
 /**
  * Studio state (Zustand): the working composition and its signature, undo history,
  * snapshots A–D, Draw by chance options, save/autosave, and a mirror of the transport
@@ -281,7 +282,7 @@ const EMPTY_TRANSPORT: RuntimeTransport = {
 
 function defaultChanceOptions(): ChanceOptions {
   return {
-    visualPool: chanceVisualMetas().map((m) => m.id),
+    visualPool: [...chanceVisualMetas(), ...chanceVisualMetas('warping')].map((m) => m.id),
     soundPool: chanceSoundMetas().map((m) => m.id),
     openCount: 2,
     chooseValues: false,
@@ -643,7 +644,9 @@ export const useStudioStore = create<StudioState>()((set, get) => {
       if (
         !state ||
         !meta ||
-        (field === 'visual' && state.visual.mapping === 'ripples' && materialId === 'honey')
+        (field === 'visual' &&
+          (visualIdForMapping(materialId, state.visual.mapping ?? 'wake') !== materialId ||
+            !listVisualMaterials(state.visual.mapping).some((e) => e.meta.id === materialId)))
       )
         return;
       commit(switchMaterial(state, field, meta, registryCatalog));
@@ -652,10 +655,11 @@ export const useStudioStore = create<StudioState>()((set, get) => {
       const state = present();
       if (!state) return;
       const next = { ...state, visual: { ...state.visual, mapping } };
-      const water = registryCatalog.visual('water');
+      const id = visualIdForMapping(state.visual.materialId, mapping);
+      const meta = registryCatalog.visual(id);
       commit(
-        mapping === 'ripples' && state.visual.materialId === 'honey' && water
-          ? switchMaterial(next, 'visual', water, registryCatalog)
+        id !== state.visual.materialId && meta
+          ? switchMaterial(next, 'visual', meta, registryCatalog)
           : next,
       );
     },
@@ -691,7 +695,7 @@ export const useStudioStore = create<StudioState>()((set, get) => {
       const state = present();
       if (!state) return false;
       const { chance } = get();
-      const visualPool = chanceVisualMetas()
+      const visualPool = chanceVisualMetas(state.visual.mapping)
         .filter((m) => chance.visualPool.includes(m.id))
         .map(choiceInfo);
       const installedSound = chanceSoundMetas();

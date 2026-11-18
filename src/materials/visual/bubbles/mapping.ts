@@ -168,7 +168,8 @@ export function bubbleParams(
   mapping: VisualMapping = 'wake',
 ): BubbleParams {
   const lines = mapping === 'lines';
-  const displacement = mapping === 'displacement' || lines;
+  const warping = mapping === 'warping';
+  const displacement = mapping === 'displacement' || lines || warping;
   const viscosity = readProperty(props, VISCOSITY);
   const elasticity = readProperty(props, ELASTICITY);
   const persistence = readProperty(props, PERSISTENCE);
@@ -185,7 +186,7 @@ export function bubbleParams(
   return {
     sim: {
       count: bubbleCount(density, quality),
-      sourceFromTop: displacement && !lines,
+      sourceFromTop: displacement && !lines && !warping,
       ...(lines ? { pathCount: 12 + 84 * density, pathLifetime: 0.45 * 16 ** persistence } : {}),
       ...(displacement
         ? { maxPushSpeed: lines ? 0.18 + 0.12 * intensity : 0.45 + 0.5 * intensity }
@@ -193,7 +194,10 @@ export function bubbleParams(
       range,
       fallSpeed: bubbleFallSpeed(fallSpeed) * (lines ? 1 : displacement ? 1.8 : 1),
       popRate: displacement ? 0 : bubblePopRate(persistence),
-      forceGain: bubbleForceGain(viscosity, intensity) * (lines ? 0.7 : displacement ? 3.4 : 1),
+      forceGain:
+        (warping ? 0.12 : 1) *
+        bubbleForceGain(viscosity, intensity) *
+        (lines ? 0.7 : displacement ? 3.4 : 1),
       drag: drag * (displacement ? 1.65 : 1),
       // Like Water's lag: longer would smear the close into the open and cancel both.
       lagSec: 0.12 * viscosity * viscosity,

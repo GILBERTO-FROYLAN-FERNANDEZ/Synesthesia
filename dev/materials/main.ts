@@ -40,7 +40,7 @@ import { solverHookProbe, type SolverProbeResult } from './solverProbe';
 
 export interface RenderOpts {
   repeatMotion?: boolean;
-  mapping?: 'wake' | 'displacement' | 'lines' | 'ripples';
+  mapping?: 'wake' | 'displacement' | 'lines' | 'ripples' | 'warping';
   materialId: string;
   kind: SyntheticKind;
   steps: number;

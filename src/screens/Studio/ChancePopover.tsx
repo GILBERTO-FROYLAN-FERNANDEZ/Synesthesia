@@ -34,7 +34,8 @@ export function ChanceButton() {
   const popoverRef = useRef<HTMLDivElement>(null);
   const store = useStudioStore.getState;
 
-  const visual = chanceVisualMetas();
+  const mapping = useStudioStore((s) => s.composition?.visual.mapping);
+  const visual = chanceVisualMetas(mapping);
   const sound = chanceSoundMetas();
   const visualPool = visual.filter((m) => options.visualPool.includes(m.id));
   const soundPool = sound.filter((m) => options.soundPool.includes(m.id));

@@ -11,6 +11,7 @@ import {
   getVisualMaterial,
   listSoundMaterials,
   listVisualMaterials,
+  visualIdForMapping,
 } from '../../materials/registry';
 import { createLiveSampler, trackLiveVideo } from '../../signature/live';
 import { FALLBACK_QUALITY } from '../../studio/quality';
@@ -198,19 +199,30 @@ export function LiveStudioScreen() {
                   visual: {
                     ...current.visual,
                     mapping,
-                    ...(mapping === 'ripples' && current.visual.materialId === 'honey'
-                      ? {
-                          materialId: 'water',
-                          materialVersion: getVisualMaterial('water')!.meta.version,
-                        }
-                      : {}),
+                    ...(() => {
+                      const id = visualIdForMapping(current.visual.materialId, mapping);
+                      const meta = getVisualMaterial(id)!.meta;
+                      return id !== current.visual.materialId
+                        ? {
+                            materialId: id,
+                            materialVersion: meta.version,
+                            properties: valuesAfterMaterialSwitch(
+                              current.visual.properties,
+                              meta.properties,
+                            ),
+                          }
+                        : {};
+                    })(),
                   },
                 }))
               }
             />
           </section>
           {(['visual', 'sound'] as const).map((kind) => {
-            const entries = kind === 'visual' ? listVisualMaterials() : listSoundMaterials();
+            const entries =
+              kind === 'visual'
+                ? listVisualMaterials(composition.visual.mapping)
+                : listSoundMaterials();
             const field = composition[kind];
             const material = entries.find(({ meta }) => meta.id === field.materialId)?.meta;
             const label = kind === 'visual' ? 'Visual' : 'Sound';
