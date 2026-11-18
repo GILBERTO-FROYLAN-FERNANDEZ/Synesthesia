@@ -21,7 +21,7 @@ export interface LiveFrameRequest {
   noiseFloor: number;
 }
 
-export type LiveFrameResponse = { frame: SignatureFrame | null; onset?: boolean } | { error: true };
+export type LiveFrameResponse = { frame: SignatureFrame | null; onset?: boolean } | { error: true; msg: string };
 
 const HISTORY_FRAMES = 16;
 let tracker: FarnebackFlow | undefined;
@@ -31,6 +31,7 @@ let frameCount = 0;
 
 self.onmessage = async ({ data }: MessageEvent<LiveFrameRequest>) => {
   try {
+    console.log("Processing frame in live worker...");
     const { width, height, timestamp, gray, opencvUrl, noiseFloor } = data;
     const { cols, rows } = gridSize(24, width, height);
     const stride = cols * rows * 2;
@@ -89,7 +90,7 @@ self.onmessage = async ({ data }: MessageEvent<LiveFrameRequest>) => {
     const frame: SignatureFrame = { t: 0, cols, rows, field, features, normalized, inTail: false };
     const response: LiveFrameResponse = { frame, onset: series.onsets.includes(frameCount - 1) };
     self.postMessage(response, { transfer: [field.buffer] });
-  } catch {
-    self.postMessage({ error: true } satisfies LiveFrameResponse);
+  } catch (e: any) {
+    self.postMessage({ error: true, msg: e.message } satisfies LiveFrameResponse);
   }
 };
