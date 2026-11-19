@@ -63,8 +63,4 @@ cross-origin-isolation headers.
 | vite-plugin-pwa | 1.3.0 | MIT | Service worker and web app manifest for offline use (M8) |
 | workbox-build, workbox-window | 7.4.1 | MIT | Peer dependencies of vite-plugin-pwa (build-time precache generation; the generated service worker ships) |
 
-## Development tools on the builder's machine (not in the repo)
 
-| Tool | License | Use |
-|---|---|---|
-| FFmpeg / ffprobe 8.1 | LGPL/GPL (tool only; never shipped or linked) | Generating synthetic test clips and checking exported MP4s. Generated clips are committed, so nobody else needs FFmpeg. |
