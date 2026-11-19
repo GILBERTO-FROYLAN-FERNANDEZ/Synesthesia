@@ -16,10 +16,12 @@ import {
   type PropertyValues,
   type Quality,
   type VisualMaterial,
+  type VisualMapping,
 } from '../materials/types';
 import type { SignatureSampler } from '../signature/types';
 
 export interface OffscreenRenderOptions {
+  mapping?: VisualMapping;
   create: () => VisualMaterial;
   sampler: SignatureSampler;
   /** Fixed steps to run before the final draw. */
@@ -74,6 +76,7 @@ export async function renderOffscreen(
       quality: opts.quality ?? 'draft',
       seed,
       rng: createRng(seed),
+      mapping: opts.mapping,
     });
     material.reset(seed);
     const props = { ...baselineValues(material.properties), ...(opts.props ?? {}) };

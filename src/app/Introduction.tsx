@@ -9,7 +9,7 @@ const STEPS = [
   {
     title: 'Welcome',
     body: [
-      'Synesthesia keeps the movement from a short clip, its signature, and lets that one movement pass through different materials: water, honey, smoke, bubbles, filaments, and sound.',
+      'Synesthesia keeps the movement from a short clip, its signature, and lets that one movement pass through different materials: water, honey, smoke, bubbles, and sound.',
       'The clip itself disappears. Its wake remains.',
     ],
   },

@@ -115,6 +115,8 @@ export class BubbleSim {
   readonly axY: Float64Array;
   /** Spawn generation per slot. */
   readonly gen: Uint32Array;
+  /** Seconds until a queued bubble enters the source; hidden until then. */
+  readonly birthDelay: Float64Array;
 
   private rng: Rng = createRng(0);
   private spawnKey = 0;
@@ -150,6 +152,7 @@ export class BubbleSim {
     this.axX = new Float64Array(n);
     this.axY = new Float64Array(n);
     this.gen = new Uint32Array(n);
+    this.birthDelay = new Float64Array(n);
     this.setCanvas(width, height);
   }
 
@@ -194,7 +197,8 @@ export class BubbleSim {
   }
 
   /**
-   * Fill the water as if bubbles had been falling for a long time (every bubble at a
+   * In displacement mode, stagger bubbles above the top over one fall cycle. Otherwise
+   * fill the water as if bubbles had been falling for a long time (every bubble at a
    * seeded point of its fall), so the movement meets a full field from t = 0. Runs on
    * the first step after reset with that step's properties; a host may also call it
    * before any step to show t = 0 (the first step then fills again, identically when the
@@ -216,7 +220,7 @@ export class BubbleSim {
     // More bubbles (Density raised during play): the new ones start above the top edge.
     for (let i = this.count; i < n; i++) {
       this.gen[i] += 1;
-      this.spawn(i, p, -1);
+      this.spawn(i, p, p.sourceFromTop ? hashUnit(this.spawnKey + CH_PHASE, i, this.gen[i]) : -1);
     }
     this.count = n;
     // Exactly one draw per step, whatever the state.
@@ -249,6 +253,10 @@ export class BubbleSim {
 
     const { px, py, dx, dy, vx, vy, lx, ly, wx, wy, wear, gx, gy, wob, wobV, axX, axY } = this;
     for (let i = 0; i < n; i++) {
+      if (this.birthDelay[i] > 0) {
+        this.birthDelay[i] = Math.max(0, this.birthDelay[i] - dt);
+        continue;
+      }
       // Popping bubbles finish their pop, then re-form on their path and fade back in.
       let state = wear[i];
       if (state >= 2) {
@@ -297,8 +305,16 @@ export class BubbleSim {
       // Pushed motion: force, drag, spring back to the path.
       const ovx = vx[i];
       const ovy = vy[i];
-      const nvx = ovx * dragDecay + (gain * fx - spring * dx[i]) * dt;
-      const nvy = ovy * dragDecay + (gain * fy - spring * dy[i]) * dt;
+      let nvx = ovx * dragDecay + (gain * fx - spring * dx[i]) * dt;
+      let nvy = ovy * dragDecay + (gain * fy - spring * dy[i]) * dt;
+      if (p.maxPushSpeed !== undefined) {
+        const speed = Math.hypot(nvx, nvy);
+        const limit = Math.max(0, p.maxPushSpeed);
+        if (speed > limit) {
+          nvx *= limit / speed;
+          nvy *= limit / speed;
+        }
+      }
       vx[i] = nvx;
       vy[i] = nvy;
       dx[i] += nvx * dt;
@@ -415,9 +431,16 @@ export class BubbleSim {
       0.006 * (hashUnit(key + CH_JITTER, i, g) * 2 - 1);
     const evenX = -SIDE_MARGIN + (W + 2 * SIDE_MARGIN) * hashUnit(key + CH_X, i, g);
     let x = streamX + (evenX - streamX) * p.spread;
-    const spawnY = H + SPAWN_ABOVE + SPAWN_BAND * hashUnit(key + CH_Y, i, g);
+    const spawnY =
+      H +
+      (p.sourceFromTop ? 0.01 : SPAWN_ABOVE) +
+      (p.sourceFromTop ? 0.02 : SPAWN_BAND) * hashUnit(key + CH_Y, i, g);
+    this.birthDelay[i] =
+      p.sourceFromTop && phase >= 0
+        ? (phase * (H + EXIT_BELOW)) / Math.max(1e-6, p.fallSpeed * fall)
+        : 0;
     let y = spawnY;
-    if (phase >= 0) {
+    if (phase >= 0 && !p.sourceFromTop) {
       // Steady state: the bubble has already fallen part of the way through the water.
       const drop = phase * (spawnY + EXIT_BELOW);
       y = spawnY - drop;

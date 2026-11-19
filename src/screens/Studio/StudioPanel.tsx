@@ -6,10 +6,11 @@ import { registryCatalog, soundMetas, visualMetas } from '../../studio/catalog';
 import { defsOf, isSoloed, lockedIds, type Field } from '../../studio/edits';
 import { linkedField, linkedValues, propertySections } from '../../studio/sections';
 import type { SoundProblem } from '../../studio/runtime';
-import { MaterialPicker } from '../../ui/MaterialPicker';
+import { MaterialPicker, type MaterialOption } from '../../ui/MaterialPicker';
 import { PropertyPanel } from '../../ui/PropertyPanel';
 import { SegmentedControl } from '../../ui/SegmentedControl';
 import { Toggle } from '../../ui/Toggle';
+import { VisualMappingControl } from './VisualMappingControl';
 import { ClipControl } from './ClipControl';
 import { MovementControls } from './MovementControls';
 import { CompositionSeed } from './CompositionSeed';
@@ -60,10 +61,35 @@ export function StudioPanel() {
   return (
     <aside className={styles.panel} aria-label="Composition controls">
       <ClipControl />
+      <section className={styles.section} aria-label="Visual mapping">
+        <h2 className={styles.sectionTitle}>Mapping</h2>
+        <VisualMappingControl
+          value={composition.visual.mapping}
+          onChange={(mapping) => store().setVisualMapping(mapping)}
+        />
+        <p className={styles.fieldNote}>
+          {composition.visual.mapping === 'warping'
+            ? 'Movement deforms the scene, which gradually returns to rest.'
+            : composition.visual.mapping === 'ripples'
+              ? 'Movement creates expanding ripples that soften and fade.'
+              : composition.visual.mapping === 'lines'
+                ? 'Sampled points follow the movement and leave fading trails.'
+                : composition.visual.mapping === 'displacement'
+                  ? 'Movement pushes the medium already in the frame.'
+                  : 'Movement leaves a wake in the medium.'}
+        </p>
+      </section>
       <MaterialSection
         field="visual"
         kind="Visual"
-        options={visualMetas()}
+        options={visualMetas(composition.visual.mapping).map((meta) => ({
+          ...meta,
+          disabled: composition.visual.mapping === 'ripples' && meta.id === 'honey',
+          disabledReason:
+            composition.visual.mapping === 'ripples' && meta.id === 'honey'
+              ? 'Unavailable with Ripples'
+              : undefined,
+        }))}
         materialId={composition.visual.materialId}
         muted={composition.mute.visual}
         soloed={isSoloed(composition.mute, 'visual')}
@@ -153,7 +179,7 @@ export function StudioPanel() {
 interface MaterialSectionProps {
   field: Field;
   kind: 'Visual' | 'Sound';
-  options: readonly MaterialMeta[];
+  options: readonly (MaterialMeta & MaterialOption)[];
   materialId: string;
   muted: boolean;
   soloed: boolean;

@@ -66,7 +66,11 @@ export class SmokePlume {
     this.emission = solver.createPass(EMISSION_FRAGMENT, 'smoke emission');
     this.smoke = solver.createPass(SMOKE_FRAGMENT, 'smoke release', defines);
     this.heating = solver.createPass(HEAT_FRAGMENT, 'smoke heat');
-    this.buoyancy = solver.createPass(BUOYANCY_FRAGMENT, 'smoke buoyancy');
+    this.buoyancy = solver.createPass(
+      BUOYANCY_FRAGMENT,
+      'smoke buoyancy',
+      solver.mapping === 'displacement' ? ['EXISTING_SMOKE'] : [],
+    );
     this.emitted = solver.createFieldTarget('rgba');
     this.heat = solver.createFieldTarget('r');
     const gl = solver.gl;
@@ -123,7 +127,7 @@ export class SmokePlume {
   private emitAndLift({ gl, solver, params }: FluidHookContext): void {
     const short = Math.min(solver.simGrid.width, solver.simGrid.height);
     const velocity = solver.velocity;
-    if (solver.fieldMagnitude() > 1e-9) {
+    if (solver.mapping !== 'displacement' && solver.fieldMagnitude() > 1e-9) {
       // Emission: the strongest push within the burst radius, and its direction.
       const e = this.emission;
       e.use();
@@ -197,7 +201,14 @@ export class SmokePlume {
     gl.uniform2f(b.u('uShortScale'), width / short, height / short);
     gl.uniform1f(b.u('uMaxSpeed'), Math.max(0, p.maxSpeed) * short);
     gl.uniform1i(b.u('uVelocity'), bindTexture(gl, 0, velocity.read.texture));
-    gl.uniform1i(b.u('uHeat'), bindTexture(gl, 1, this.heat.read.texture));
+    gl.uniform1i(
+      b.u('uHeat'),
+      bindTexture(
+        gl,
+        1,
+        solver.mapping === 'displacement' ? solver.dye.read.texture : this.heat.read.texture,
+      ),
+    );
     solver.blit(velocity.write);
     velocity.swap();
   }

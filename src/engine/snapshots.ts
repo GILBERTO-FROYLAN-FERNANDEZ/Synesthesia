@@ -40,7 +40,8 @@ export function snapshotChanges(
   return {
     visualMaterial:
       a.visual.materialId !== b.visual.materialId ||
-      a.visual.materialVersion !== b.visual.materialVersion,
+      a.visual.materialVersion !== b.visual.materialVersion ||
+      a.visual.mapping !== b.visual.mapping,
     soundMaterial:
       a.sound.materialId !== b.sound.materialId ||
       a.sound.materialVersion !== b.sound.materialVersion,

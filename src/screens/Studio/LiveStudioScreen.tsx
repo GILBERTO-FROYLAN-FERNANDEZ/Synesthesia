@@ -1,3 +1,4 @@
+import { valuesAfterMaterialSwitch } from '../../engine/propertyModel';
 import { useEffect, useRef, useState } from 'react';
 import { navigate } from '../../app/router';
 import { DEFAULT_RENDER_SETTINGS, type Composition } from '../../engine/composition';
@@ -10,6 +11,7 @@ import {
   getVisualMaterial,
   listSoundMaterials,
   listVisualMaterials,
+  visualIdForMapping,
 } from '../../materials/registry';
 import { createLiveSampler, trackLiveVideo } from '../../signature/live';
 import { FALLBACK_QUALITY } from '../../studio/quality';
@@ -17,6 +19,8 @@ import { StudioRuntime, type PictureProblem, type SoundProblem } from '../../stu
 import { Button } from '../../ui/Button';
 import { MaterialPicker } from '../../ui/MaterialPicker';
 import { PropertyPanel } from '../../ui/PropertyPanel';
+import { VisualMappingControl } from './VisualMappingControl';
+import { visualMappingProperties } from '../../materials/visual/lines/properties';
 import { Slider } from '../../ui/Slider';
 import { floorFromSensitivity, formatSensitivity } from '../Prepare/sensitivity';
 import styles from './Studio.module.css';
@@ -185,8 +189,40 @@ export function LiveStudioScreen() {
             {composition.mute.sound ? 'Enable sound' : 'Mute sound'}
           </Button>
           {sound && !composition.mute.sound ? <p role="status">Sound is unavailable.</p> : null}
+          <section className={styles.section} aria-label="Visual mapping">
+            <h2 className={styles.sectionTitle}>Mapping</h2>
+            <VisualMappingControl
+              value={composition.visual.mapping}
+              onChange={(mapping) =>
+                setComposition((current) => ({
+                  ...current,
+                  visual: {
+                    ...current.visual,
+                    mapping,
+                    ...(() => {
+                      const id = visualIdForMapping(current.visual.materialId, mapping);
+                      const meta = getVisualMaterial(id)!.meta;
+                      return id !== current.visual.materialId
+                        ? {
+                            materialId: id,
+                            materialVersion: meta.version,
+                            properties: valuesAfterMaterialSwitch(
+                              current.visual.properties,
+                              meta.properties,
+                            ),
+                          }
+                        : {};
+                    })(),
+                  },
+                }))
+              }
+            />
+          </section>
           {(['visual', 'sound'] as const).map((kind) => {
-            const entries = kind === 'visual' ? listVisualMaterials() : listSoundMaterials();
+            const entries =
+              kind === 'visual'
+                ? listVisualMaterials(composition.visual.mapping)
+                : listSoundMaterials();
             const field = composition[kind];
             const material = entries.find(({ meta }) => meta.id === field.materialId)?.meta;
             const label = kind === 'visual' ? 'Visual' : 'Sound';
@@ -194,7 +230,19 @@ export function LiveStudioScreen() {
               <div className={styles.section} key={kind}>
                 <MaterialPicker
                   kind={label}
-                  options={entries.map(({ meta }) => meta)}
+                  options={entries.map(({ meta }) => ({
+                    ...meta,
+                    disabled:
+                      kind === 'visual' &&
+                      composition.visual.mapping === 'ripples' &&
+                      meta.id === 'honey',
+                    disabledReason:
+                      kind === 'visual' &&
+                      composition.visual.mapping === 'ripples' &&
+                      meta.id === 'honey'
+                        ? 'Unavailable with Ripples'
+                        : undefined,
+                  }))}
                   value={field.materialId}
                   onChange={(id) => {
                     const next = entries.find(({ meta }) => meta.id === id)?.meta;
@@ -202,9 +250,24 @@ export function LiveStudioScreen() {
                     setComposition((current) => ({
                       ...current,
                       [kind]: {
+                        ...current[kind],
                         materialId: next.id,
                         materialVersion: next.version,
-                        properties: baselineValues(next.properties),
+                        properties: {
+                          ...(kind === 'visual' &&
+                          (current.visual.mapping === 'lines' ||
+                            current.visual.mapping === 'ripples')
+                            ? valuesAfterMaterialSwitch(
+                                current.visual.properties,
+                                visualMappingProperties(next.properties, current.visual.mapping),
+                              )
+                            : baselineValues(next.properties)),
+                          ...(kind === 'visual' &&
+                          (current.visual.mapping === 'lines' ||
+                            current.visual.mapping === 'ripples')
+                            ? { size: current.visual.properties.size ?? 0.5 }
+                            : {}),
+                        },
                       },
                     }));
                   }}
@@ -212,7 +275,11 @@ export function LiveStudioScreen() {
                 {material ? (
                   <PropertyPanel
                     key={material.id}
-                    defs={material.properties}
+                    defs={
+                      kind === 'visual'
+                        ? visualMappingProperties(material.properties, composition.visual.mapping)
+                        : material.properties
+                    }
                     values={field.properties}
                     label={`${material.name} ${kind} properties`}
                     onChange={(id, value) =>

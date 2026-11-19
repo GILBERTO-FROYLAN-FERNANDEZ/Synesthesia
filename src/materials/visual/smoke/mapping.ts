@@ -7,7 +7,7 @@
  * (strong vorticity confinement and seeded turbulence).
  */
 import { readProperty } from '../../properties';
-import type { PropertyValues } from '../../types';
+import type { PropertyValues, VisualMapping } from '../../types';
 import { rangeScale, type FluidDisplayParams, type FluidStepParams } from '../shared/fluid';
 import { hueTurns } from '../shared/hue';
 import { smokeProperty } from './properties';
@@ -115,7 +115,8 @@ export function burstRadius(base: number, divergence: number): number {
   return Math.max(0, base) * 2 ** (1.6 * d);
 }
 
-export function smokeParams(props: PropertyValues): SmokeParams {
+export function smokeParams(props: PropertyValues, mapping: VisualMapping = 'wake'): SmokeParams {
+  const displacement = mapping === 'displacement';
   const viscosity = readProperty(props, VISCOSITY);
   const persistence = readProperty(props, PERSISTENCE);
   const dispersion = readProperty(props, DISPERSION);
@@ -129,7 +130,7 @@ export function smokeParams(props: PropertyValues): SmokeParams {
   return {
     step: {
       range,
-      forceGain: smokeForceGain(intensity),
+      forceGain: smokeForceGain(intensity) * (displacement ? 0.65 : 1),
       forceLowPassSec: 0.1 * viscosity * viscosity,
       // Turbulence comes from Smoke's own seeded eddies, not a scatter of the push.
       jitterAngle: 0,
@@ -141,11 +142,11 @@ export function smokeParams(props: PropertyValues): SmokeParams {
       dyeSpots: 0,
       dyeSpotCoverage: 1,
       dyeDissipation: smokeDissipation(persistence),
-      velocityDissipation: 0.1 + 1.4 * viscosity * viscosity,
+      velocityDissipation: (0.1 + 1.4 * viscosity * viscosity) * (displacement ? 2.5 : 1),
       viscosity: nu,
       viscosityIterations: nu > 0 ? Math.round(4 + 8 * viscosity) : 0,
       // Swirl keeps smoke curling; thick air can't hold fine curls.
-      vorticity: (0.12 + 0.36 * dispersion) * (1 - 0.7 * viscosity),
+      vorticity: (0.12 + 0.36 * dispersion) * (1 - 0.7 * viscosity) * (displacement ? 0.65 : 1),
       pressureIterations: SMOKE_PRESSURE_ITERATIONS,
     },
     emit: {
@@ -159,7 +160,7 @@ export function smokeParams(props: PropertyValues): SmokeParams {
       cooling: 0.5,
       turbulence: 2.4 * dispersion * (1 - 0.6 * viscosity),
       turbulenceScale: 3,
-      maxSpeed: 4,
+      maxSpeed: displacement ? 0.8 + 0.6 * intensity : 4,
     },
     display: {
       exposure: 2 ** (2.4 * (brightness - 0.5)),

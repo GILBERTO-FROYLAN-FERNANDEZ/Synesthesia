@@ -4,11 +4,12 @@ import { filamentsEntry } from './filaments';
 import { honeyEntry } from './honey';
 import { signatureViewEntry } from './signature-view';
 import { smokeEntry } from './smoke';
+import { WARP_MATERIALS } from './warping';
 import { waterEntry } from './water';
 
 /**
- * Every visual material, in picker order. V0 "Signature" (the diagnostic view) is
- * listed but not counted toward the five materials.
+ * Installed visual materials, including retired ones needed by saved compositions.
+ * The registry determines which are offered in pickers.
  */
 export const VISUAL_MATERIALS: VisualMaterialEntry[] = [
   waterEntry,
@@ -17,4 +18,5 @@ export const VISUAL_MATERIALS: VisualMaterialEntry[] = [
   bubblesEntry,
   filamentsEntry,
   signatureViewEntry,
+  ...WARP_MATERIALS,
 ];

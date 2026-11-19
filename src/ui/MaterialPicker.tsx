@@ -6,6 +6,8 @@ export interface MaterialOption {
   id: string;
   name: string;
   description: string;
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
 export interface MaterialPickerProps {
@@ -57,17 +59,29 @@ export function MaterialPicker({ kind, options, value, onChange, disabled }: Mat
 
   const choose = (index: number) => {
     const option = options[index];
-    if (option) onChange(option.id);
+    if (!option || option.disabled) return;
+    onChange(option.id);
     setOpen(false);
+  };
+
+  const moveHighlight = (direction: number) => {
+    setHighlight((current) => {
+      let next = current + direction;
+      while (next >= 0 && next < options.length) {
+        if (!options[next].disabled) return next;
+        next += direction;
+      }
+      return current;
+    });
   };
 
   const onListKeyDown = (e: KeyboardEvent<HTMLUListElement>) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setHighlight((h) => Math.min(options.length - 1, h + 1));
+      moveHighlight(1);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setHighlight((h) => Math.max(0, h - 1));
+      moveHighlight(-1);
     } else if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       choose(highlight);
@@ -115,8 +129,10 @@ export function MaterialPicker({ kind, options, value, onChange, disabled }: Mat
               id={`${id}-opt-${index}`}
               role="option"
               aria-selected={option.id === value}
+              aria-disabled={option.disabled || undefined}
               className={[
                 styles.option,
+                option.disabled ? styles.disabledOption : '',
                 index === highlight ? styles.highlight : '',
                 option.id === value ? styles.selected : '',
               ]
@@ -126,12 +142,14 @@ export function MaterialPicker({ kind, options, value, onChange, disabled }: Mat
                 const start = pointerAtOpen.current;
                 if (start && start.x === e.clientX && start.y === e.clientY) return;
                 pointerAtOpen.current = null;
-                setHighlight(index);
+                if (!option.disabled) setHighlight(index);
               }}
               onClick={() => choose(index)}
             >
               <span className={styles.optionName}>{option.name}</span>
-              <span className={styles.optionDescription}>{option.description}</span>
+              <span className={styles.optionDescription}>
+                {option.disabledReason ?? option.description}
+              </span>
             </li>
           ))}
         </ul>

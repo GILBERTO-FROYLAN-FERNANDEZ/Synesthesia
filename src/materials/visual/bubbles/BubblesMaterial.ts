@@ -9,7 +9,13 @@
  */
 import type { SignatureFrame } from '../../../signature/types';
 import { baselineValues } from '../../properties';
-import type { PropertyValues, Quality, VisualContext, VisualMaterial } from '../../types';
+import type {
+  PropertyValues,
+  Quality,
+  VisualMapping,
+  VisualContext,
+  VisualMaterial,
+} from '../../types';
 import {
   GlResources,
   bindTexture,
@@ -20,7 +26,9 @@ import {
 } from '../shared/gl';
 import { HueTurn } from '../shared/hue';
 import { PALETTE_SIZE, WAKE_PALETTE_BYTES } from '../shared/wakePalette';
+import { ContactBubbleSim } from './ContactBubbleSim';
 import { BubbleSim } from './BubbleSim';
+import { PathBubbleSim } from './PathBubbleSim';
 import {
   BUBBLE_TIER_CAPS,
   bubbleParams,
@@ -33,7 +41,7 @@ import { BUBBLE_FRAGMENT, BUBBLE_VERTEX } from './shaders';
 export const BUBBLES_META = {
   id: 'bubbles',
   version: 1,
-  name: 'Descending bubbles',
+  name: 'Bubbles',
   description:
     'Clear bubbles sinking through dark water. The movement shoves them aside; they glow, wobble, and carry its shape as they fall.',
   properties: BUBBLES_PROPERTIES,
@@ -41,13 +49,8 @@ export const BUBBLES_META = {
 
 /** Floats per bubble in the instance buffer: centre, glow, shape matrix, light. */
 const FLOATS_PER_BUBBLE = 10;
-/** Motion stretch per short side per second of speed, and its cap. */
-const STRETCH_PER_SPEED = 2;
-const STRETCH_MAX = 2.2;
 /** Pearl rims at rest. */
 const REST_COLOR: readonly [number, number, number] = [0.8, 0.87, 0.96];
-/** Extra light on a fully glowing bubble. */
-const GLOW_GAIN = 3.5;
 /** A popping bubble swells by this much and flashes by this much before it fades. */
 const POP_SWELL = 0.45;
 const POP_FLASH = 1.5;
@@ -68,6 +71,7 @@ export class BubblesMaterial implements VisualMaterial {
   private sim: BubbleSim | null = null;
   private instances = new Float32Array(0);
   private quality: Quality = 'standard';
+  private mapping: VisualMapping = 'wake';
   private simParams: BubbleSimParams;
   private display: BubbleDisplayParams;
   private readonly hueTurn = new HueTurn();
@@ -87,6 +91,7 @@ export class BubblesMaterial implements VisualMaterial {
       this.gl = gl;
       this.res = res;
       this.quality = ctx.quality;
+      this.mapping = ctx.mapping ?? 'wake';
       this.program = createProgram(res, BUBBLE_VERTEX, BUBBLE_FRAGMENT, { name: 'bubbles' });
       this.paletteTex = createTexture(
         res,
@@ -96,7 +101,9 @@ export class BubblesMaterial implements VisualMaterial {
         { filter: gl.LINEAR, wrap: gl.REPEAT, data: WAKE_PALETTE_BYTES },
       );
       const capacity = BUBBLE_TIER_CAPS[ctx.quality];
-      this.instances = new Float32Array(capacity * FLOATS_PER_BUBBLE);
+      this.instances = new Float32Array(
+        (capacity + (ctx.mapping === 'warping' ? 2048 : 0)) * FLOATS_PER_BUBBLE,
+      );
       this.vao = res.vertexArray();
       this.buffer = res.buffer();
       gl.bindVertexArray(this.vao);
@@ -114,7 +121,12 @@ export class BubblesMaterial implements VisualMaterial {
       gl.vertexAttribDivisor(2, 1);
       gl.bindVertexArray(null);
       gl.bindBuffer(gl.ARRAY_BUFFER, null);
-      this.sim = new BubbleSim(capacity, ctx.width, ctx.height);
+      this.sim =
+        ctx.mapping === 'warping'
+          ? new ContactBubbleSim(capacity, ctx.width, ctx.height)
+          : ctx.mapping === 'lines'
+            ? new PathBubbleSim(capacity, ctx.width, ctx.height)
+            : new BubbleSim(capacity, ctx.width, ctx.height);
       this.setProperties(baselineValues(BUBBLES_PROPERTIES));
       this.reset(ctx.seed);
       return Promise.resolve();
@@ -129,15 +141,15 @@ export class BubblesMaterial implements VisualMaterial {
   }
 
   step(frame: SignatureFrame, props: PropertyValues, dt: number): void {
-    const params = bubbleParams(props, this.quality);
+    const params = bubbleParams(props, this.quality, this.mapping);
     this.simParams = params.sim;
     this.display = params.display;
-    this.sim?.step(frame, params.sim, dt);
+    this.sim?.step(frame, this.simParams, dt);
   }
 
   /** Apply display-only properties (brightness, hue, size) without advancing time. */
   setProperties(props: PropertyValues): void {
-    const params = bubbleParams(props, this.quality);
+    const params = bubbleParams(props, this.quality, this.mapping);
     this.display = params.display;
     // Also what a not-yet-stepped simulation shows at t = 0.
     if (!this.sim || this.sim.steps === 0) this.simParams = params.sim;
@@ -148,7 +160,7 @@ export class BubblesMaterial implements VisualMaterial {
     const program = this.program;
     const sim = this.sim;
     if (!gl || !program || !sim || !this.vao || !this.buffer || gl.isContextLost()) return;
-    // Before the first step (t = 0, paused), show the water as the first step will fill it.
+    // Initialize the seeded source without advancing it when drawing before the first step.
     if (!sim.populated) sim.populate(this.simParams);
     const width = gl.drawingBufferWidth;
     const height = gl.drawingBufferHeight;
@@ -171,10 +183,12 @@ export class BubblesMaterial implements VisualMaterial {
     gl.uniform3f(program.u('uRestColor'), REST_COLOR[0], REST_COLOR[1], REST_COLOR[2]);
     gl.uniform1f(program.u('uExposure'), Math.max(0, this.display.exposure));
     gl.uniform1f(program.u('uSaturation'), Math.max(0, this.display.saturation));
-    gl.uniform1f(program.u('uGlowGain'), GLOW_GAIN);
+    gl.uniform1f(program.u('uGlowGain'), 0.65);
+    gl.uniform1f(program.u('uTintStrength'), 0.3);
+    gl.uniform1f(program.u('uSoftBlend'), 1);
     this.hueTurn.apply(gl, program.u('uHueTurn'), this.display.hue);
     gl.enable(gl.BLEND);
-    gl.blendFunc(gl.ONE, gl.ONE);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, count);
     gl.disable(gl.BLEND);
     gl.bindVertexArray(null);
@@ -211,12 +225,13 @@ export class BubblesMaterial implements VisualMaterial {
     const { px, py, dx, dy, vx, vy, wx, wy, gx, gy, wob, axX, axY, size, fall, wear } = sim;
     let o = 0;
     for (let i = 0; i < n; i++) {
+      if (sim.birthDelay[i] > 0) continue;
       // Velocity as seen: pushed motion + wandering + the fall.
       const tvx = vx[i] + wx[i];
       const tvy = vy[i] + wy[i] - fallSpeed * fall[i];
       const speed = Math.sqrt(tvx * tvx + tvy * tvy);
       // Motion stretch along the velocity (slightly thinner across).
-      const along = 1 + Math.min(STRETCH_MAX, speed * STRETCH_PER_SPEED);
+      const along = 1 + Math.min(0.28, speed * 0.45);
       const across = 1 / Math.sqrt(Math.sqrt(along));
       let mx = 0;
       let my = 1;
@@ -230,7 +245,7 @@ export class BubblesMaterial implements VisualMaterial {
       const s01 = ka * mx * my;
       const s11 = across + ka * my * my;
       // S_wobble = (1 − w/2)·I + (3w/2)·a aᵀ
-      const w = wob[i];
+      const w = wob[i] * 0.3;
       const base = 1 - 0.5 * w;
       const kw = 1.5 * w;
       const ax = axX[i];
@@ -240,7 +255,7 @@ export class BubblesMaterial implements VisualMaterial {
       const w11 = base + kw * ay * ay;
       // Popping: swell, flash, and fade. Re-forming: grow and fade back in.
       let grow = 1;
-      let alpha = 1;
+      let alpha = sim instanceof PathBubbleSim ? sim.opacity[i] : 1;
       const state = wear[i];
       if (state >= 2) {
         const t = Math.min(1, state - 2);
@@ -264,10 +279,27 @@ export class BubblesMaterial implements VisualMaterial {
       out[o + 6] = r * (s00 * w01 + s01 * w11);
       out[o + 7] = r * (s01 * w01 + s11 * w11);
       // Smaller (farther) bubbles are a little dimmer.
-      out[o + 8] = 0.3 + 0.26 * Math.min(1.6, size[i]);
+      out[o + 8] = 0.48 + 0.3 * Math.min(1.6, size[i]);
       out[o + 9] = alpha;
       o += FLOATS_PER_BUBBLE;
     }
-    return n;
+    if (sim instanceof ContactBubbleSim) {
+      const mist = sim.mist;
+      for (let i = 0; i < mist.count && o + FLOATS_PER_BUBBLE <= out.length; i++) {
+        const t = mist.age[i] / mist.lifetime[i];
+        if (!(t >= 0 && t < 1)) continue;
+        const r = mist.radius[i] * (1 + t * 1.8);
+        out[o] = mist.x[i];
+        out[o + 1] = mist.y[i];
+        out[o + 2] = out[o + 3] = 0;
+        out[o + 4] = r;
+        out[o + 5] = out[o + 6] = 0;
+        out[o + 7] = r * (mist.radius[i] < 0.003 ? 1.8 : 1.2);
+        out[o + 8] = -1; // Soft mist sprite, rather than a bubble rim.
+        out[o + 9] = (mist.radius[i] < 0.003 ? 0.45 : 0.22) * (1 - t) ** 1.4;
+        o += FLOATS_PER_BUBBLE;
+      }
+    }
+    return o / FLOATS_PER_BUBBLE;
   }
 }

@@ -10,7 +10,7 @@ import {
   listSoundMaterials,
   listVisualMaterials,
 } from '../materials/registry';
-import type { MaterialMeta } from '../materials/types';
+import type { MaterialMeta, VisualMapping } from '../materials/types';
 import type { MaterialCatalog } from './edits';
 
 export const registryCatalog: MaterialCatalog = {
@@ -18,8 +18,8 @@ export const registryCatalog: MaterialCatalog = {
   sound: (id) => getSoundMaterial(id)?.meta,
 };
 
-export function visualMetas(): MaterialMeta[] {
-  return listVisualMaterials().map((e) => e.meta);
+export function visualMetas(mapping?: VisualMapping): MaterialMeta[] {
+  return listVisualMaterials(mapping).map((e) => e.meta);
 }
 
 export function soundMetas(): MaterialMeta[] {
@@ -30,8 +30,10 @@ export function soundMetas(): MaterialMeta[] {
  * Visual materials chance may pick. The Signature view is a diagnostic "bare wake", not one
  * of the materials (SPEC 9.4), so it is never drawn by chance (as in albums).
  */
-export function chanceVisualMetas(): MaterialMeta[] {
-  return visualMetas().filter((m) => m.id !== SIGNATURE_VIEW_ID);
+export function chanceVisualMetas(mapping?: VisualMapping): MaterialMeta[] {
+  return visualMetas(mapping).filter(
+    (m) => m.id !== SIGNATURE_VIEW_ID && !(mapping === 'ripples' && m.id === 'honey'),
+  );
 }
 
 export function chanceSoundMetas(): MaterialMeta[] {

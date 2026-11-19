@@ -44,7 +44,11 @@ export async function saveComposition(c: Composition): Promise<Composition> {
 }
 
 export async function getComposition(id: string): Promise<Composition | undefined> {
-  return (await openLibraryDb()).get('compositions', id);
+  const composition = await (await openLibraryDb()).get('compositions', id);
+  // The early prototype stored the mapping as a medium. Normalize it on opening too.
+  return composition?.visual.materialId === 'displacement'
+    ? validateComposition(composition)
+    : composition;
 }
 
 /** Every composition, most recently changed first. */

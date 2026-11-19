@@ -158,6 +158,7 @@ const STATE_KEYS = [
   'axX',
   'axY',
   'gen',
+  'birthDelay',
 ] as const;
 
 function snapshot(sim: BubbleSim) {
@@ -325,5 +326,95 @@ describe('Descending bubbles simulation', () => {
       const lowest = Math.min(...Array.from(sim.py.subarray(0, sim.count)));
       expect(lowest).toBeGreaterThan(-EXIT_BELOW - 1);
     }
+  });
+});
+
+describe('Descending bubbles displacement source', () => {
+  const params = bubbleParams(baseline, 'draft', 'displacement').sim;
+  const still = { cols: 16, rows: 9, field: new Float32Array(16 * 9 * 2) };
+  const create = () => {
+    const sim = new BubbleSim(BUBBLE_TIER_CAPS.draft, 960, 540);
+    sim.reset(7);
+    return sim;
+  };
+
+  it('starts at the top, enters gradually, and keeps replacing bubbles that leave', () => {
+    const sim = create();
+    sim.populate(params);
+    for (let i = 0; i < sim.count; i++) expect(sim.py[i]).toBeGreaterThan(sim.worldHeight);
+    for (let s = 0; s < 60; s++) sim.step(still, params, FIXED_DT);
+    const entered = Array.from(sim.py.subarray(0, sim.count)).filter((y) => y < sim.worldHeight);
+    expect(entered.length).toBeGreaterThan(20);
+    expect(entered.length).toBeLessThan(sim.count * 0.4);
+    expect(Math.min(...entered)).toBeGreaterThan(sim.worldHeight - 0.35);
+    for (let s = 60; s < 900; s++) sim.step(still, params, FIXED_DT);
+    expect(Array.from(sim.gen.subarray(0, sim.count)).filter((g) => g > 0).length).toBeGreaterThan(
+      sim.count * 0.8,
+    );
+  });
+
+  for (const direction of [-1, 1]) {
+    it(`visibly carries bubbles ${direction === 1 ? 'right' : 'left'} with the motion`, () => {
+      const reference = create();
+      const moving = create();
+      for (let s = 0; s < 480; s++) {
+        reference.step(still, params, FIXED_DT);
+        moving.step(still, params, FIXED_DT);
+      }
+      const candidates = Array.from({ length: moving.count }, (_, i) => i).filter(
+        (i) =>
+          moving.birthDelay[i] === 0 &&
+          moving.px[i] > 0.4 &&
+          moving.px[i] < 1.3 &&
+          moving.py[i] > 0.3 &&
+          moving.py[i] < 0.85,
+      );
+      expect(candidates.length).toBeGreaterThan(50);
+      const field = new Float32Array(still.field.length);
+      for (let i = 0; i < field.length; i += 2) field[i] = direction * 0.3;
+      for (let s = 0; s < 18; s++) {
+        reference.step(still, params, FIXED_DT);
+        moving.step({ ...still, field }, params, FIXED_DT);
+      }
+      const displacement =
+        candidates.reduce(
+          (sum, i) => sum + direction * (moving.px[i] + moving.dx[i] - reference.px[i]),
+          0,
+        ) / candidates.length;
+      expect(displacement).toBeGreaterThan(0.05);
+      expect(params.spring).toBe(0);
+      expect(params.popRate).toBe(0);
+    });
+  }
+
+  it('limits a fast swipe and lets the bubbles settle promptly afterward', () => {
+    const sim = create();
+    for (let s = 0; s < 480; s++) sim.step(still, params, FIXED_DT);
+    const field = new Float32Array(still.field.length);
+    for (let i = 0; i < field.length; i += 2) field[i] = 3;
+    let fastest = 0;
+    for (let s = 0; s < 30; s++) {
+      sim.step({ ...still, field }, params, FIXED_DT);
+      for (let i = 0; i < sim.count; i++) {
+        const speed = Math.hypot(sim.vx[i], sim.vy[i]);
+        fastest = Math.max(fastest, speed);
+        expect(speed).toBeLessThanOrEqual((params.maxPushSpeed ?? 0) + 1e-10);
+      }
+    }
+    expect(fastest).toBeGreaterThan(0.3);
+    for (let s = 0; s < 42; s++) sim.step(still, params, FIXED_DT);
+    for (let i = 0; i < sim.count; i++) expect(Math.hypot(sim.vx[i], sim.vy[i])).toBeLessThan(0.05);
+  });
+
+  it('replays the top source and pushes identically after a reset', () => {
+    const a = create();
+    const b = create();
+    for (let s = 0; s < 600; s++) a.step(still, params, FIXED_DT);
+    a.reset(7);
+    for (let s = 0; s < 300; s++) {
+      a.step(still, params, FIXED_DT);
+      b.step(still, params, FIXED_DT);
+    }
+    expect(snapshot(a)).toEqual(snapshot(b));
   });
 });

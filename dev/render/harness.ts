@@ -12,6 +12,7 @@ import type {
   Quality,
   SoundMaterialEntry,
   VisualMaterialEntry,
+  VisualMapping,
 } from '../../src/materials/types';
 // Through the public entry point, which loads the pipeline lazily, as the app does.
 import {
@@ -41,6 +42,7 @@ export const TEST_FLASH = 'test-flash';
 export const TEST_CLICK = 'test-click';
 
 export interface RenderBytesOptions {
+  mapping?: VisualMapping;
   /** A `.sig.json` to load; default: the synthetic wink. */
   signatureUrl?: string;
   /** Registry id, or 'test-flash'. Default 'water'. */
@@ -176,6 +178,7 @@ export function buildComposition(
       composition.timeline.tailSec = 0;
     }
   }
+  if (opts.mapping) composition.visual.mapping = opts.mapping;
   composition.visual.properties = { ...composition.visual.properties, ...opts.props?.visual };
   composition.sound.properties = { ...composition.sound.properties, ...opts.props?.sound };
   composition.mute = {

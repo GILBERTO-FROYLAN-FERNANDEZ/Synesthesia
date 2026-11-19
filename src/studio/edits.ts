@@ -1,3 +1,4 @@
+import { visualMappingProperties } from '../materials/visual/lines/properties';
 /**
  * Every edit the Studio makes to a composition's wake, as pure functions (SPEC 6.3, 9.2,
  * 12.2). They work on `WakeState`, the parts of a composition that shape the wake (the
@@ -58,7 +59,10 @@ export function defsOf(
   catalog: MaterialCatalog,
 ): FieldDefs {
   return {
-    visual: catalog.visual(state.visual.materialId)?.properties ?? [],
+    visual: visualMappingProperties(
+      catalog.visual(state.visual.materialId)?.properties ?? [],
+      state.visual.mapping,
+    ),
     sound: catalog.sound(state.sound.materialId)?.properties ?? [],
   };
 }
@@ -187,11 +191,20 @@ export function switchMaterial(
   if (state.linked) previous = { ...sharedOnly(state[otherField(field)].properties), ...previous };
   const properties = {
     ...sharedOnly(previous),
-    ...valuesAfterMaterialSwitch(previous, meta.properties),
+    ...valuesAfterMaterialSwitch(
+      previous,
+      field === 'visual'
+        ? visualMappingProperties(meta.properties, state.visual.mapping)
+        : meta.properties,
+    ),
+    ...(field === 'visual' &&
+    (state.visual.mapping === 'lines' || state.visual.mapping === 'ripples')
+      ? { size: own.properties.size ?? 0.5 }
+      : {}),
   };
   let next: WakeState = {
     ...state,
-    [field]: { materialId: meta.id, materialVersion: meta.version, properties },
+    [field]: { ...own, materialId: meta.id, materialVersion: meta.version, properties },
   };
   const defs = defsOf(next, catalog);
   if (state.linked) next = unify(next, defs);

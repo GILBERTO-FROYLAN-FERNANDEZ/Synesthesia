@@ -43,7 +43,11 @@ export interface MaterialMeta {
 
 export type Quality = 'draft' | 'standard' | 'high';
 
+export const VISUAL_MAPPINGS = ['wake', 'displacement', 'lines', 'ripples', 'warping'] as const;
+export type VisualMapping = (typeof VISUAL_MAPPINGS)[number];
+
 export interface VisualContext {
+  mapping?: VisualMapping;
   gl: WebGL2RenderingContext;
   /** Drawing-buffer size in pixels. */
   width: number;

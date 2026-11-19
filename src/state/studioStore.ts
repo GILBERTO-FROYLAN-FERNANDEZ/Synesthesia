@@ -1,3 +1,4 @@
+import { visualIdForMapping } from '../materials/registry';
 /**
  * Studio state (Zustand): the working composition and its signature, undo history,
  * snapshots A–D, Draw by chance options, save/autosave, and a mirror of the transport
@@ -38,7 +39,7 @@ import {
   listSoundMaterials,
   listVisualMaterials,
 } from '../materials/registry';
-import type { Quality } from '../materials/types';
+import type { Quality, VisualMapping } from '../materials/types';
 import type { KineticSignature } from '../signature/types';
 import { Debouncer } from '../studio/autosave';
 import {
@@ -208,6 +209,7 @@ export interface StudioState {
 
   setProperty: (field: Field, id: string, value: number, gesture: Gesture) => void;
   setMaterial: (field: Field, materialId: string) => void;
+  setVisualMapping: (mapping: VisualMapping) => void;
   setLinked: (linked: boolean) => void;
   setTimeline: (patch: Partial<Composition['timeline']>, gesture?: Gesture) => void;
   setSeed: (seed: number) => void;
@@ -280,7 +282,7 @@ const EMPTY_TRANSPORT: RuntimeTransport = {
 
 function defaultChanceOptions(): ChanceOptions {
   return {
-    visualPool: chanceVisualMetas().map((m) => m.id),
+    visualPool: [...chanceVisualMetas(), ...chanceVisualMetas('warping')].map((m) => m.id),
     soundPool: chanceSoundMetas().map((m) => m.id),
     openCount: 2,
     chooseValues: false,
@@ -639,8 +641,27 @@ export const useStudioStore = create<StudioState>()((set, get) => {
     setMaterial: (field, materialId) => {
       const state = present();
       const meta = registryCatalog[field](materialId);
-      if (!state || !meta) return;
+      if (
+        !state ||
+        !meta ||
+        (field === 'visual' &&
+          (visualIdForMapping(materialId, state.visual.mapping ?? 'wake') !== materialId ||
+            !listVisualMaterials(state.visual.mapping).some((e) => e.meta.id === materialId)))
+      )
+        return;
       commit(switchMaterial(state, field, meta, registryCatalog));
+    },
+    setVisualMapping: (mapping) => {
+      const state = present();
+      if (!state) return;
+      const next = { ...state, visual: { ...state.visual, mapping } };
+      const id = visualIdForMapping(state.visual.materialId, mapping);
+      const meta = registryCatalog.visual(id);
+      commit(
+        id !== state.visual.materialId && meta
+          ? switchMaterial(next, 'visual', meta, registryCatalog)
+          : next,
+      );
     },
     setLinked: (linked) => {
       const state = present();
@@ -674,7 +695,7 @@ export const useStudioStore = create<StudioState>()((set, get) => {
       const state = present();
       if (!state) return false;
       const { chance } = get();
-      const visualPool = chanceVisualMetas()
+      const visualPool = chanceVisualMetas(state.visual.mapping)
         .filter((m) => chance.visualPool.includes(m.id))
         .map(choiceInfo);
       const installedSound = chanceSoundMetas();
