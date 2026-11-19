@@ -126,7 +126,7 @@ describe('undo history', () => {
 function composition(overrides: Partial<Composition> = {}): Composition {
   return {
     format: 'sp-composition',
-    version: 1,
+    version: 2,
     id: 'c1',
     name: 'Track',
     createdAt: '2026-09-28T00:00:00Z',
@@ -142,6 +142,7 @@ function composition(overrides: Partial<Composition> = {}): Composition {
     render: { width: 1920, height: 1080, fps: 30 },
     status: 'draft',
     notes: '',
+    performance: { origin: 'studio', sourceType: 'recordedClip' },
     ...overrides,
   };
 }

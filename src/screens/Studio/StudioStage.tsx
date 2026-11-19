@@ -11,7 +11,9 @@ import { measureThisComputer } from '../../studio/measure';
 import { FALLBACK_QUALITY } from '../../studio/quality';
 import { StudioRuntime, type PictureProblem } from '../../studio/runtime';
 import { CloseIcon } from '../../ui/icons';
+import { soundMetas, visualMetas } from '../../studio/catalog';
 import styles from './Studio.module.css';
+import { StudioSourceVideo, type StudioView } from './StudioSource';
 
 /** Hide the pointer after this long without movement in presentation mode. */
 const CURSOR_IDLE_MS = 2000;
@@ -59,7 +61,19 @@ function clipView(composition: Composition, opacity: number): ClipLayerView {
  * computer for "Automatic" preview quality. While the Clip slider is up, the clip lies over
  * the canvas (SPEC 6.3 "Clip layer"); at 0 there is no clip here at all.
  */
-export function StudioStage({ ref }: { ref?: Ref<HTMLDivElement> }) {
+export function StudioStage({
+  ref,
+  view,
+  onViewChange,
+  clipAvailable,
+  sourceBlob,
+}: {
+  ref?: Ref<HTMLDivElement>;
+  view: StudioView;
+  onViewChange: (view: StudioView) => void;
+  clipAvailable: boolean;
+  sourceBlob: Blob | null;
+}) {
   const hostRef = useRef<HTMLDivElement>(null);
   const runtimeRef = useRef<StudioRuntime | null>(null);
   const clipLayerRef = useRef<ClipLayer | null>(null);
@@ -68,10 +82,18 @@ export function StudioStage({ ref }: { ref?: Ref<HTMLDivElement> }) {
   const composition = useStudioStore((s) => s.composition);
   const picture = useStudioStore((s) => s.picture);
   const presentation = useStudioStore((s) => s.presentation);
-  const clipShown = useStudioStore((s) => s.clipOpacity > 0);
+  const playing = useStudioStore((s) => s.transport.playing);
+  const position = useStudioStore((s) => s.transport.position);
+  const clipShown = useStudioStore((s) => s.clipOpacity > 0) && view === 'result';
   const clipOpacity = useStudioStore((s) => s.clipOpacity);
   const [cursorHidden, setCursorHidden] = useState(false);
+  const [hasShownLiveFrame, setHasShownLiveFrame] = useState(false);
   const measuring = quality === null;
+
+  useEffect(() => setHasShownLiveFrame(false), [session]);
+  useEffect(() => {
+    if (playing || position > 0) setHasShownLiveFrame(true);
+  }, [playing, position]);
 
   // First visit: measure this computer, then remember the tier (SPEC 14.2).
   useEffect(() => {
@@ -163,7 +185,7 @@ export function StudioStage({ ref }: { ref?: Ref<HTMLDivElement> }) {
       layer.dispose();
       clipLayerRef.current = null;
     };
-  }, [measuring, session, clipShown]);
+  }, [measuring, session, clipShown, view]);
 
   useEffect(() => {
     if (composition) clipLayerRef.current?.update(clipView(composition, clipOpacity));
@@ -192,6 +214,18 @@ export function StudioStage({ ref }: { ref?: Ref<HTMLDivElement> }) {
   }, [presentation]);
 
   const store = useStudioStore.getState;
+  const selectedVisualName = visualMetas().find(
+    (material) => material.id === composition?.visual.materialId,
+  )?.name;
+  const selectedSoundName = soundMetas().find(
+    (material) => material.id === composition?.sound.materialId,
+  )?.name;
+  const visualName = selectedVisualName ?? 'Visual';
+  const soundName = selectedSoundName ?? 'Sound';
+  const pausedArtworkLabel =
+    selectedVisualName && selectedSoundName
+      ? `${selectedVisualName} visual · ${selectedSoundName} sound`
+      : 'Composition preview';
   const classes = [styles.stage, cursorHidden ? styles.cursorHidden : ''].filter(Boolean).join(' ');
   // On phones the stage takes the composition's shape (Studio.module.css).
   const aspect = composition
@@ -200,8 +234,121 @@ export function StudioStage({ ref }: { ref?: Ref<HTMLDivElement> }) {
       } as CSSProperties)
     : undefined;
   return (
-    <div ref={ref} className={classes} style={aspect}>
-      <div ref={hostRef} className={styles.canvasHost} />
+    <div ref={ref} className={classes} style={aspect} data-view={view}>
+      {presentation ? null : (
+        <div className={styles.stageHeader}>
+          <div>
+            <span className={styles.eyebrow}>Composition preview</span>
+            <strong>{visualName} and {soundName}</strong>
+            <small>{composition?.name}</small>
+          </div>
+          <div className={styles.viewToolbar} role="group" aria-label="Preview view">
+            <button
+              type="button"
+              onClick={() => onViewChange('source')}
+              disabled={!clipAvailable}
+              aria-pressed={view === 'source'}
+              title={
+                clipAvailable
+                  ? 'Show the original recorded clip'
+                  : 'Source video is unavailable for this composition'
+              }
+            >
+              Source
+            </button>
+            <button
+              type="button"
+              onClick={() => onViewChange('result')}
+              aria-pressed={view === 'result'}
+            >
+              Result
+            </button>
+            <button
+              type="button"
+              onClick={() => onViewChange('split')}
+              disabled={!clipAvailable}
+              aria-pressed={view === 'split'}
+              title={
+                clipAvailable
+                  ? 'Compare the source movement and generated wake'
+                  : 'Split View needs a source video'
+              }
+            >
+              Split View
+            </button>
+          </div>
+        </div>
+      )}
+      <div className={styles.stagePanes}>
+        <div className={styles.resultPane}>
+          {view === 'split' ? <span className={styles.paneLabel}>Generated result</span> : null}
+          <div ref={hostRef} className={styles.canvasHost} />
+          {!playing && !presentation && !hasShownLiveFrame ? (
+            <div className={styles.pausedArtwork} aria-hidden="true">
+              <svg viewBox="0 0 800 510" preserveAspectRatio="xMidYMid slice">
+                <defs>
+                  <filter id="studio-soft-glow">
+                    <feGaussianBlur stdDeviation="12" />
+                  </filter>
+                  <linearGradient id="studio-water" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stopColor="#b9f1f6" />
+                    <stop offset=".55" stopColor="#55c7df" />
+                    <stop offset="1" stopColor="#247f9c" />
+                  </linearGradient>
+                  <linearGradient id="studio-honey" x1="0" y1="1" x2="1" y2="0">
+                    <stop offset="0" stopColor="#8a5314" />
+                    <stop offset=".58" stopColor="#f2b33d" />
+                    <stop offset="1" stopColor="#ffe39a" />
+                  </linearGradient>
+                </defs>
+                <g className={styles.artGlow} filter="url(#studio-soft-glow)">
+                  <path d="M-55 424C86 203 251 405 370 240S626 152 855-32" />
+                  <path d="M-38 496C120 283 274 471 420 302S677 247 844 112" />
+                </g>
+                <g className={styles.artWater}>
+                  <path d="M-55 424C86 203 251 405 370 240S626 152 855-32" />
+                  <path d="M-38 496C120 283 274 471 420 302S677 247 844 112" />
+                  <path d="M36 542c106-178 202-83 314-199s260-31 438-221" />
+                </g>
+                <g className={styles.artHoney}>
+                  <path d="M7 470c160-8 174-138 278-149s117 62 212 2 106-173 294-181" />
+                  <path d="M-2 501c177 5 190-88 293-101s127 55 232-17 120-141 272-149" />
+                </g>
+                <g className={styles.artParticles}>
+                  {Array.from({ length: 24 }, (_, index) => (
+                    <circle
+                      key={index}
+                      cx={64 + ((index * 137) % 686)}
+                      cy={54 + ((index * 89) % 382)}
+                      r={index % 4 === 0 ? 4 : 2}
+                    />
+                  ))}
+                </g>
+              </svg>
+              <span className={styles.artLabel}>{pausedArtworkLabel}</span>
+            </div>
+          ) : null}
+        </div>
+        {clipAvailable && view !== 'result' ? (
+          <div className={styles.sourcePane}>
+            {view === 'split' ? <span className={styles.paneLabel}>Original movement</span> : null}
+            <StudioSourceVideo sourceBlob={sourceBlob} />
+          </div>
+        ) : null}
+      </div>
+      {!playing && !presentation && !hasShownLiveFrame && !measuring && !picture ? (
+        <div className={styles.pausedMessage}>
+          <span className={styles.pausedPlay}>
+            <svg viewBox="0 0 20 20" width="18" height="18">
+              <path d="M6 4l10 6-10 6z" fill="currentColor" />
+            </svg>
+          </span>
+          <span>
+            <strong>Press Play</strong>
+            <small>Preview the composition and hear its response.</small>
+          </span>
+        </div>
+      ) : null}
       {presentation ? (
         <button
           type="button"

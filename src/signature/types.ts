@@ -120,7 +120,7 @@ export interface KineticSignature {
   /** Playback rate chosen in Prepare; default for a composition's Speed. */
   preferredSpeed: number;
   extraction: {
-    method: 'farneback';
+    method: 'farneback' | 'block-matching';
     params: FarnebackParams;
     /**
      * Longer side of the analysis frame in pixels (the name predates the rule: for a

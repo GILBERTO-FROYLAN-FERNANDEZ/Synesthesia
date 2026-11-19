@@ -44,3 +44,13 @@ export interface StoredClip {
   id: string;
   [key: string]: unknown;
 }
+
+export interface StoredMediaAsset {
+  id: string;
+  kind: 'generated-video' | 'source-video';
+  blob: Blob;
+  mimeType: string;
+  createdAt: string;
+  duration: number;
+  fileName: string;
+}

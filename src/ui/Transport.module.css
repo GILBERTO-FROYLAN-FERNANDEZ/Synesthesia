@@ -2,10 +2,11 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
-  background: var(--color-basin);
-  border-top: 1px solid color-mix(in srgb, var(--color-silt) 45%, transparent);
-  min-height: 56px;
+  align-content: center;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  background: #0a1f2a;
+  min-height: 100%;
 }
 
 .round {
@@ -26,8 +27,8 @@
 }
 
 .play {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   background: var(--color-honey);
   border-color: transparent;
   color: var(--color-deep);

@@ -111,7 +111,7 @@ const harness = {
     const now = new Date().toISOString();
     return lib.saveComposition({
       format: 'sp-composition',
-      version: 1,
+      version: 2,
       id: crypto.randomUUID(),
       name,
       createdAt: now,
@@ -127,6 +127,7 @@ const harness = {
       render: { ...DEFAULT_RENDER_SETTINGS },
       status: 'draft',
       notes: 'Harness composition.',
+      performance: { origin: 'studio', sourceType: 'recordedClip' },
     });
   },
   getComposition: (id: string) => lib.getComposition(id),

@@ -1,21 +1,21 @@
 import { useMemo, useState } from 'react';
-import { href } from '../../app/router';
 import { useStudioStore } from '../../state/studioStore';
+import { navigate } from '../../app/router';
 import { compositionsDiffer } from '../../studio/edits';
 import { ActionMenu } from '../../ui/ActionMenu';
 import { Button } from '../../ui/Button';
-import { GuideLink } from '../../ui/GuideLink';
 import { InlineRename } from '../../ui/InlineRename';
 import styles from './Studio.module.css';
 
-/** Breadcrumb (Library / signature / composition, renamed in place), save state, actions. */
+/** Studio workspace toolbar: composition identity, save state and composition actions. */
 export function StudioHeader() {
   const composition = useStudioStore((s) => s.composition);
   const baseline = useStudioStore((s) => s.baseline);
   const signature = useStudioStore((s) => s.signature);
-  const album = useStudioStore((s) => s.album);
   const isNew = useStudioStore((s) => s.isNew);
   const saving = useStudioStore((s) => s.saving);
+  const canUndo = useStudioStore((s) => s.canUndo);
+  const canRedo = useStudioStore((s) => s.canRedo);
   const [renaming, setRenaming] = useState(false);
   const changed = useMemo(
     () => (composition && baseline ? compositionsDiffer(composition, baseline) : false),
@@ -23,7 +23,6 @@ export function StudioHeader() {
   );
   if (!composition || !signature) return null;
   const store = useStudioStore.getState;
-
   const saveState = saving
     ? 'Saving…'
     : isNew
@@ -34,50 +33,57 @@ export function StudioHeader() {
 
   return (
     <header className={styles.header}>
-      <nav className={styles.crumbs} aria-label="Where you are">
-        <ol>
-          <li>
-            <a href={href('/')}>Library</a>
-          </li>
-          <li>
-            {album ? (
-              <a href={href(`/album/${encodeURIComponent(album.id)}`)}>{album.title}</a>
-            ) : (
-              <a href={href(`/signature/${encodeURIComponent(signature.id)}`)}>{signature.name}</a>
-            )}
-          </li>
-          <li aria-current="page" className={styles.current}>
-            {renaming ? (
-              <InlineRename
-                value={composition.name}
-                label={`New name for ${composition.name}`}
-                className={styles.renameField}
-                onCommit={(name) => {
-                  store().rename(name);
-                  setRenaming(false);
-                }}
-                onCancel={() => setRenaming(false)}
-              />
-            ) : (
-              <button
-                type="button"
-                className={styles.nameButton}
-                onClick={() => setRenaming(true)}
-                title="Rename"
-                aria-label={`${composition.name}. Rename`}
-              >
-                {composition.name}
-              </button>
-            )}
-          </li>
-        </ol>
-      </nav>
+      <div className={styles.compositionIdentity}>
+        <span>Composition</span>
+        {renaming ? (
+          <InlineRename
+            value={composition.name}
+            label={`New name for ${composition.name}`}
+            className={styles.renameField}
+            onCommit={(name) => {
+              store().rename(name);
+              setRenaming(false);
+            }}
+            onCancel={() => setRenaming(false)}
+          />
+        ) : (
+          <button
+            type="button"
+            className={styles.nameButton}
+            onClick={() => setRenaming(true)}
+            title="Rename composition"
+            aria-label={`${composition.name}. Rename`}
+          >
+            {composition.name}
+          </button>
+        )}
+      </div>
       <p className={styles.saveState} role="status" data-testid="save-state">
+        <i aria-hidden="true" />
         {saveState}
       </p>
+      <div className={styles.historyActions} role="group" aria-label="Edit history">
+        <button
+          type="button"
+          onClick={() => store().undo()}
+          disabled={!canUndo}
+          title="Undo (Command or Ctrl+Z)"
+        >
+          Undo
+        </button>
+        <button
+          type="button"
+          onClick={() => store().redo()}
+          disabled={!canRedo}
+          title="Redo (Shift+Command or Ctrl+Z)"
+        >
+          Redo
+        </button>
+      </div>
       <div className={styles.headerActions}>
         <Button
           variant="primary"
+          className={styles.headerSave}
           onClick={() => void store().save()}
           disabled={saving}
           title="Save (S)"
@@ -85,43 +91,49 @@ export function StudioHeader() {
           Save
         </Button>
         <Button
-          className={styles.wideOnly}
-          onClick={() => void store().saveAsNew()}
-          disabled={saving || isNew}
-        >
-          Save as new
-        </Button>
-        <Button
-          className={styles.wideOnly}
           onClick={() => store().setRenderOpen(true)}
           title="Render MP4 (R)"
         >
-          Render MP4
+          Export
         </Button>
         <Button
-          variant="quiet"
-          className={styles.wideOnly}
           onClick={() => store().setPresentation(true)}
           title="Show only the wake, full screen (F). Esc comes back."
         >
           Present
         </Button>
-        {/* Phones and tablets: the three above, folded into one menu. */}
-        <span className={styles.moreMenu}>
-          <ActionMenu
-            label="More actions"
-            items={[
-              {
-                label: 'Save as new',
-                onSelect: () => void store().saveAsNew(),
-                disabled: saving || isNew,
-              },
-              { label: 'Render MP4', onSelect: () => store().setRenderOpen(true) },
-              { label: 'Present', onSelect: () => store().setPresentation(true) },
-            ]}
-          />
-        </span>
-        <GuideLink section="studio" compact />
+        <ActionMenu
+          label="More composition actions"
+          items={[
+            ...(composition.performance.generatedVideoAssetId
+              ? [
+                  {
+                    label: 'Play captured performance',
+                    onSelect: () =>
+                      navigate(
+                        `/performance/asset/${encodeURIComponent(composition.performance.generatedVideoAssetId as string)}`,
+                      ),
+                  },
+                ]
+              : []),
+            ...(composition.performance.sourceVideoAssetId
+              ? [
+                  {
+                    label: 'View immutable camera reference',
+                    onSelect: () =>
+                      navigate(
+                        `/performance/asset/${encodeURIComponent(composition.performance.sourceVideoAssetId as string)}`,
+                      ),
+                  },
+                ]
+              : []),
+            {
+              label: 'Save as new',
+              onSelect: () => void store().saveAsNew(),
+              disabled: saving || isNew,
+            },
+          ]}
+        />
       </div>
     </header>
   );

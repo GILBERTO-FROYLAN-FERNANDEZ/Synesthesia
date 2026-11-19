@@ -17,10 +17,10 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Composition } from '../engine/composition';
 import type { KineticSignature } from '../signature/types';
 import { LibraryError, MESSAGES, errorDetail } from './errors';
-import type { SignatureMeta, StoredAlbum, StoredClip } from './types';
+import type { SignatureMeta, StoredAlbum, StoredClip, StoredMediaAsset } from './types';
 
 export const DB_NAME = 'synesthesia';
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
 export interface LibrarySchema extends DBSchema {
   signatures: { key: string; value: KineticSignature };
@@ -34,6 +34,7 @@ export interface LibrarySchema extends DBSchema {
   clips: { key: string; value: StoredClip };
   settings: { key: string; value: unknown };
   workingState: { key: string; value: unknown };
+  mediaAssets: { key: string; value: StoredMediaAsset };
 }
 
 export type LibraryDatabase = IDBPDatabase<LibrarySchema>;
@@ -46,6 +47,7 @@ export const STORE_NAMES = [
   'clips',
   'settings',
   'workingState',
+  'mediaAssets',
 ] as const;
 
 let dbPromise: Promise<LibraryDatabase> | null = null;
@@ -64,6 +66,9 @@ function open(): Promise<LibraryDatabase> {
         db.createObjectStore('clips', { keyPath: 'id' });
         db.createObjectStore('settings');
         db.createObjectStore('workingState');
+      }
+      if (oldVersion < 2) {
+        db.createObjectStore('mediaAssets', { keyPath: 'id' });
       }
     },
     blocking() {

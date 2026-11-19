@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStudioStore } from '../../state/studioStore';
 import { RenderDialog } from './render/RenderDialog';
 import styles from './Studio.module.css';
@@ -7,6 +7,7 @@ import { StudioNotices } from './StudioNotices';
 import { StudioPanel } from './StudioPanel';
 import { StudioStage } from './StudioStage';
 import { StudioTransport } from './StudioTransport';
+import { hasVisitClip, MovementSourcePanel, useStoredSourceBlob, type StudioView } from './StudioSource';
 import { usePresentationMode } from './usePresentationMode';
 import { useStudioKeyboard } from './useStudioKeyboard';
 
@@ -21,14 +22,39 @@ export function StudioWorkspace() {
   const composition = useStudioStore((s) => s.composition);
   const signature = useStudioStore((s) => s.signature);
   const stageRef = useRef<HTMLDivElement>(null);
+  const [sourceCollapsed, setSourceCollapsed] = useState(false);
+  const [view, setView] = useState<StudioView>('result');
+  const sourceBlob = useStoredSourceBlob(composition?.performance.sourceVideoAssetId);
+  const clipAvailable = hasVisitClip(signature) || sourceBlob !== null;
   useStudioKeyboard();
   usePresentationMode(stageRef);
 
+  useEffect(() => {
+    if (!clipAvailable && view !== 'result') setView('result');
+  }, [clipAvailable, view]);
+
+  useEffect(() => {
+    if (presentation && view !== 'result') setView('result');
+  }, [presentation, view]);
+
   return (
     <div className={`${styles.studio} ${presentation ? styles.presenting : ''}`}>
-      <div className={styles.grid}>
+      <div className={`${styles.grid} ${sourceCollapsed ? styles.sourceIsCollapsed : ''}`}>
         {presentation ? null : <StudioHeader />}
-        <StudioStage ref={stageRef} />
+        {presentation ? null : (
+          <MovementSourcePanel
+            collapsed={sourceCollapsed}
+            onCollapse={() => setSourceCollapsed((value) => !value)}
+            sourceBlob={sourceBlob}
+          />
+        )}
+        <StudioStage
+          ref={stageRef}
+          view={view}
+          onViewChange={setView}
+          clipAvailable={clipAvailable}
+          sourceBlob={sourceBlob}
+        />
         {presentation ? null : <StudioNotices />}
         {presentation ? null : <StudioPanel />}
         {presentation ? null : <StudioTransport />}

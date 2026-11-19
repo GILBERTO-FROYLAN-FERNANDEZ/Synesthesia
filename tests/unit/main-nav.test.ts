@@ -1,19 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { isCurrentNav } from '../../src/app/MainNav';
+import { primaryForPath } from '../../src/app/GlobalNavigation';
 
-describe('main navigation', () => {
-  it('marks an item current on its own screen and on the screens below it', () => {
-    expect(isCurrentNav('/guide', '/guide')).toBe(true);
-    expect(isCurrentNav('/guide', '/guide/studio')).toBe(true);
-    expect(isCurrentNav('/help', '/help')).toBe(true);
-    expect(isCurrentNav('/help', '/guide')).toBe(false);
-    // A path that merely starts with the same letters is another screen.
-    expect(isCurrentNav('/guide', '/guidebook')).toBe(false);
+describe('global navigation', () => {
+  it('maps workspace routes to their primary destination', () => {
+    expect(primaryForPath('/studio/abc')).toBe('studio');
+    expect(primaryForPath('/studio/new/signature')).toBe('studio');
+    expect(primaryForPath('/studio')).toBe('studio');
+    expect(primaryForPath('/perform')).toBe('perform');
+    expect(primaryForPath('/perform/live')).toBe('perform');
+    expect(primaryForPath('/perform/review')).toBe('perform');
+    expect(primaryForPath('/performance/asset/abc')).toBe('perform');
+    expect(primaryForPath('/collaborative')).toBe('collaborate');
+    expect(primaryForPath('/collaborative/abc')).toBe('collaborate');
   });
 
-  it('marks the Library current only on the Library itself', () => {
-    expect(isCurrentNav('/', '/')).toBe(true);
-    expect(isCurrentNav('/', '/studio/abc')).toBe(false);
-    expect(isCurrentNav('/', '/guide')).toBe(false);
+  it('keeps Library workflows grouped and secondary pages unselected', () => {
+    expect(primaryForPath('/')).toBe('library');
+    expect(primaryForPath('/prepare')).toBe('library');
+    expect(primaryForPath('/signature/abc')).toBe('library');
+    expect(primaryForPath('/album/abc')).toBe('library');
+    expect(primaryForPath('/guide')).toBe(null);
+    expect(primaryForPath('/settings')).toBe(null);
   });
 });

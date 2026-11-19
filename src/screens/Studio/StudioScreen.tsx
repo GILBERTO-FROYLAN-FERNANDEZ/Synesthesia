@@ -16,7 +16,8 @@ function targetOf(params: Record<string, string> | undefined): StudioTarget | nu
 /**
  * Studio (SPEC 6.3): where a signature is applied to a visual and a sound material and
  * played. `#/studio/new/:signatureId` starts a composition from a signature (unsaved until
- * Save); `#/studio/:compositionId` opens a saved one. The source clip never appears here.
+ * Save); `#/studio/:compositionId` opens a saved one. Optional source video is shown
+ * only for comparison and remains separate from the movement signature and render.
  */
 export function StudioScreen({ params }: { params?: Record<string, string> }) {
   const target = targetOf(params);
@@ -71,7 +72,7 @@ export function StudioScreen({ params }: { params?: Record<string, string> }) {
         <Message title="This composition isn’t here">
           <p>
             It isn’t in your library any more. It may have been deleted in another window.{' '}
-            <a href={href('/')}>Go to the library</a>.
+            <a href={href('/studio')}>Choose another composition</a>.
           </p>
         </Message>
       );

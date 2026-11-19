@@ -19,9 +19,9 @@ const SIZES = [
   { width: 768, height: 1024 },
 ];
 
-/** At this width and narrower the header's links fold into the Menu (MainNav.tsx). */
+/** At this width and narrower the header's links fold into the global Menu. */
 const COMPACT_NAV_MAX = 720;
-const NAV_ITEMS = ['Library', 'Guide', 'Help', 'Settings', 'Diagnostics'];
+const NAV_ITEMS = ['Library', 'Perform', 'Studio', 'Collaborate'];
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -171,7 +171,7 @@ for (const size of SIZES) {
       const menu = nav.getByRole('button', { name: 'Menu' });
       const links = nav.getByRole('link');
       if (size.width <= COMPACT_NAV_MAX) {
-        // The links fold into the Menu, which opens a list of all of them.
+        // The primary links and More fold into the Menu.
         await expectInside(page, menu);
         await expect(menu).toHaveAttribute('aria-expanded', 'false');
         await expect(links.first()).toBeHidden();
@@ -203,15 +203,17 @@ for (const size of SIZES) {
 
         // Choosing a screen goes there and closes it.
         await menu.tap();
-        await nav.getByRole('link', { name: 'Settings' }).tap();
+        await nav.getByRole('button', { name: 'More' }).tap();
+        await page.getByRole('menuitem', { name: 'Settings' }).tap();
         await expect(page).toHaveURL(/#\/settings$/);
         await expect(page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible();
         await expect(menu).toHaveAttribute('aria-expanded', 'false');
-        await expect(nav.getByRole('link', { name: 'Settings' })).toBeHidden();
+        await expect(nav.getByRole('button', { name: 'More' })).toBeHidden();
       } else {
         await expect(menu).toBeHidden();
         for (const name of NAV_ITEMS) await expectInside(page, nav.getByRole('link', { name }));
-        await nav.getByRole('link', { name: 'Settings' }).tap();
+        await nav.getByRole('button', { name: 'More' }).click();
+        await page.getByRole('menuitem', { name: 'Settings' }).click();
         await expect(page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible();
       }
       await expectFits(page);

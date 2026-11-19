@@ -51,6 +51,9 @@ function openSignature(id: string) {
 function openComposition(id: string) {
   navigate(`/studio/${encodeURIComponent(id)}`);
 }
+function openRecording(id: string) {
+  navigate(`/performance/asset/${encodeURIComponent(id)}`);
+}
 function startComposition(signatureId: string) {
   navigate(`/studio/new/${encodeURIComponent(signatureId)}`);
 }
@@ -513,13 +516,24 @@ export function LibraryScreen() {
                       : c.status === 'set-aside'
                         ? ' · set aside'
                         : '';
+                  const origin =
+                    c.performance.origin === 'performance'
+                      ? 'Live Performance'
+                      : c.performance.origin === 'collaborative'
+                        ? 'Collaborative Performance'
+                        : 'Studio Composition';
+                  const recorded =
+                    c.performance.origin === 'performance' && c.performance.duration !== undefined
+                      ? `${formatDuration(c.performance.duration)} · ${origin}`
+                      : origin;
                   return (
                     <LibraryCard
                       key={c.id}
                       name={name}
                       thumbnail={c.thumbnail}
                       details={[
-                        `From “${signatureName(c.signature.name)}”${status}`,
+                        `${recorded}${status}`,
+                        `From “${signatureName(c.signature.name)}”`,
                         `Changed ${formatChanged(c.updatedAt)}`,
                       ]}
                       warning={
@@ -532,6 +546,24 @@ export function LibraryScreen() {
                       onRename={(next) => renameItem('composition', c.id, next)}
                       onRenameEnd={() => setRenaming(null)}
                       menu={[
+                        ...(c.performance.generatedVideoAssetId
+                          ? [
+                              {
+                                label: 'Play generated recording',
+                                onSelect: () =>
+                                  openRecording(c.performance.generatedVideoAssetId as string),
+                              },
+                            ]
+                          : []),
+                        ...(c.performance.sourceVideoAssetId
+                          ? [
+                              {
+                                label: 'View original camera recording',
+                                onSelect: () =>
+                                  openRecording(c.performance.sourceVideoAssetId as string),
+                              },
+                            ]
+                          : []),
                         {
                           label: 'Rename',
                           onSelect: () => setRenaming({ kind: 'composition', id: c.id }),

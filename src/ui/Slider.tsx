@@ -34,6 +34,8 @@ export interface SliderProps {
   accent?: 'honey' | 'water';
   /** Always show the value (e.g. Speed), not only on hover and focus. */
   showValue?: boolean;
+  /** Hide the built-in label/value row when a composed control supplies its own header. */
+  hideHeader?: boolean;
 }
 
 const defaultFormat = (v: number) => v.toFixed(2);
@@ -73,6 +75,7 @@ export function Slider({
   onUnlock,
   accent = 'honey',
   showValue = false,
+  hideHeader = false,
 }: SliderProps) {
   const id = useId();
   const trackRef = useRef<HTMLDivElement>(null);
@@ -227,37 +230,43 @@ export function Slider({
         lastPointer.current = e.pointerType;
       }}
     >
-      <div className={styles.header}>
-        <label
-          className={`${styles.label} ${description ? styles.described : ''}`}
-          id={`${id}-label`}
-          htmlFor={id}
-          onClick={onLabelClick}
-        >
+      {hideHeader ? (
+        <span id={`${id}-label`} className="visually-hidden">
           {label}
-        </label>
-        {locked && onUnlock ? (
-          <button
-            type="button"
-            className={styles.lock}
-            onClick={onUnlock}
-            aria-label={`Unlock ${label}`}
-            title="Locked by chance. Unlock to change it (this is recorded)."
+        </span>
+      ) : (
+        <div className={styles.header}>
+          <label
+            className={`${styles.label} ${description ? styles.described : ''}`}
+            id={`${id}-label`}
+            htmlFor={id}
+            onClick={onLabelClick}
           >
-            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-              <path
-                d="M4.5 7V5a3.5 3.5 0 1 1 7 0v2M3.5 7h9v7h-9z"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.4"
-              />
-            </svg>
-          </button>
-        ) : null}
-        <output className={styles.readout} htmlFor={id} aria-hidden="true">
-          {format(value)}
-        </output>
-      </div>
+            {label}
+          </label>
+          {locked && onUnlock ? (
+            <button
+              type="button"
+              className={styles.lock}
+              onClick={onUnlock}
+              aria-label={`Unlock ${label}`}
+              title="Locked by chance. Unlock to change it (this is recorded)."
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                <path
+                  d="M4.5 7V5a3.5 3.5 0 1 1 7 0v2M3.5 7h9v7h-9z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                />
+              </svg>
+            </button>
+          ) : null}
+          <output className={styles.readout} htmlFor={id} aria-hidden="true">
+            {format(value)}
+          </output>
+        </div>
+      )}
       <div
         ref={trackRef}
         id={id}
@@ -287,7 +296,7 @@ export function Slider({
         </div>
         <div className={styles.thumb} style={{ left: `${fraction * 100}%` }} />
       </div>
-      {noteOpen && description ? (
+      {!hideHeader && noteOpen && description ? (
         <p className={styles.note} aria-hidden="true">
           {description}
         </p>

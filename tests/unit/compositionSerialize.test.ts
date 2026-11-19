@@ -13,7 +13,7 @@ import type { JsonObject } from '../../src/signature/serialize';
 function makeComposition(overrides: Partial<Composition> = {}): Composition {
   return {
     format: 'sp-composition',
-    version: 1,
+    version: 2,
     id: 'c0ffee00-0000-4000-8000-000000000001',
     name: 'Track 07',
     createdAt: '2026-09-28T10:00:00.000Z',
@@ -51,6 +51,7 @@ function makeComposition(overrides: Partial<Composition> = {}): Composition {
     status: 'kept',
     notes: 'The honey hides the blink.\nTry less viscosity.',
     thumbnail: 'data:image/png;base64,iVBORw0KGgo=',
+    performance: { origin: 'studio', sourceType: 'recordedClip' },
     ...overrides,
   };
 }
@@ -102,7 +103,46 @@ describe('composition files', () => {
       'updatedAt',
       'signature',
     ]);
-    expect(keys.at(-1)).toBe('thumbnail');
+    expect(keys.at(-1)).toBe('performance');
+  });
+
+  it('migrates version 1 studio compositions without changing their editable settings', () => {
+    const current = rawCopy(makeComposition());
+    const old: JsonObject = { ...current, version: 1 };
+    delete old.performance;
+    const migrated = parseComposition(JSON.stringify(old));
+    expect(migrated.version).toBe(2);
+    expect(migrated.performance).toEqual({ origin: 'studio', sourceType: 'recordedClip' });
+    expect(migrated.visual).toEqual(makeComposition().visual);
+    expect(migrated.sound).toEqual(makeComposition().sound);
+  });
+
+  it('round-trips live performance provenance and recording links', () => {
+    const performance = {
+      origin: 'performance' as const,
+      sourceType: 'liveCamera' as const,
+      sessionId: 'session-1',
+      motionSignatureId: 'signature-1',
+      generatedVideoAssetId: 'generated-1',
+      duration: 12.5,
+      recordedAt: '2026-10-20T08:58:00.000Z',
+      recordingStatus: 'generated-only' as const,
+      mappingSettings: { intensity: 1.2, volume: 0.7, muted: false, sensitivity: 1 },
+      timestampedSettingChanges: [
+        {
+          atSec: 2,
+          visualMaterialId: 'water',
+          soundMaterialId: 'breath',
+          intensity: 1.2,
+          volume: 0.7,
+          muted: false,
+          sensitivity: 1,
+        },
+      ],
+    };
+    expect(parseComposition(serializeComposition(makeComposition({ performance }))).performance).toEqual(
+      performance,
+    );
   });
 
   it('refuse text that is not JSON', () => {

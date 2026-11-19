@@ -57,6 +57,7 @@ export function createComposition(input: NewCompositionInput): Composition {
     render: { ...input.render },
     status: 'draft',
     notes: '',
+    performance: { origin: 'studio', sourceType: 'recordedClip' },
   };
 }
 

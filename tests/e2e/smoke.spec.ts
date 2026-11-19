@@ -11,7 +11,8 @@ test('the app loads the library home without errors', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Library' })).toBeVisible();
   await expect(page.getByText('Bring in a clip to make your first signature.')).toBeVisible();
 
-  await page.getByRole('link', { name: 'Diagnostics' }).click();
+  await page.getByRole('button', { name: 'More' }).click();
+  await page.getByRole('menuitem', { name: 'Diagnostics' }).click();
   await expect(page.getByRole('heading', { name: 'Diagnostics' })).toBeVisible();
 
   expect(errors).toEqual([]);

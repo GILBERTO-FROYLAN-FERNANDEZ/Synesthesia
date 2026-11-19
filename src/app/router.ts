@@ -26,10 +26,10 @@ export function navigate(path: string, options: { replace?: boolean } = {}): voi
   const hash = `#${path.startsWith('/') ? path : `/${path}`}`;
   if (options.replace) {
     window.history.replaceState(window.history.state, '', hash);
-    window.dispatchEvent(new HashChangeEvent('hashchange'));
   } else {
-    window.location.hash = hash;
+    window.history.pushState(window.history.state, '', hash);
   }
+  window.dispatchEvent(new HashChangeEvent('hashchange'));
 }
 
 /** Build an href for an anchor element. */

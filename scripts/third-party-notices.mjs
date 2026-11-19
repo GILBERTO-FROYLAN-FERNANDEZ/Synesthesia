@@ -35,6 +35,7 @@ const PACKAGES = [
   { title: 'Zustand', use: 'keeping track of what is on screen', packages: ['zustand'] },
   { title: 'idb', use: 'the library kept in this browser', packages: ['idb'] },
   { title: 'fflate', use: 'backup files', packages: ['fflate'] },
+  { title: 'MediaPipe Tasks Vision', use: 'live body tracking', packages: ['@mediapipe/tasks-vision'] },
   {
     title: 'Workbox',
     use: 'working offline',
@@ -65,7 +66,12 @@ function readPackage(name) {
   const dir = join(root, 'node_modules', name);
   const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
   const licenseFile = readdirSync(dir).find((f) => /^licen[cs]e(\.|$)/i.test(f));
-  if (!licenseFile) throw new Error(`${name} has no license file in node_modules.`);
+  const licensePath = licenseFile
+    ? join(dir, licenseFile)
+    : name === '@mediapipe/tasks-vision' && manifest.license === 'Apache-2.0'
+      ? join(root, 'public', 'vendor', 'opencv', 'LICENSE')
+      : null;
+  if (!licensePath) throw new Error(`${name} has no license file in node_modules.`);
   const repository =
     typeof manifest.repository === 'string' ? manifest.repository : manifest.repository?.url;
   const address = (manifest.homepage || repository || '')
@@ -78,7 +84,7 @@ function readPackage(name) {
     version: manifest.version,
     license: manifest.license,
     address,
-    text: clean(readFileSync(join(dir, licenseFile), 'utf8')),
+    text: clean(readFileSync(licensePath, 'utf8')),
   };
 }
 

@@ -1,0 +1,171 @@
+.header {
+  position: relative;
+  z-index: 20;
+  min-height: 64px;
+  padding: var(--space-2) var(--space-5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-silt) 45%, transparent);
+  background: color-mix(in srgb, var(--color-basin) 55%, var(--color-deep));
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-surround) 22%, transparent);
+}
+
+.wordmark {
+  min-height: var(--hit-min);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-pearl);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-strong);
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.wordmark::before {
+  content: '';
+  width: 22px;
+  height: 24px;
+  background:
+    linear-gradient(70deg, transparent 0 30%, var(--color-water) 31% 39%, transparent 40%),
+    linear-gradient(70deg, transparent 0 47%, var(--color-honey) 48% 58%, transparent 59%),
+    linear-gradient(70deg, transparent 0 66%, var(--color-water) 67% 74%, transparent 75%);
+}
+
+.nav {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.menuButton {
+  display: none;
+}
+
+.navContent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.list {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+}
+
+.list a {
+  color: var(--color-mist);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  padding: var(--space-1) var(--space-3);
+  min-height: var(--hit-min);
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-md);
+}
+
+.list a:hover {
+  color: var(--color-pearl);
+}
+
+.list a[aria-current='page'] {
+  color: var(--color-pearl);
+  background: var(--color-basin);
+  box-shadow: inset 0 -2px 0 var(--color-water);
+}
+
+.moreButton {
+  width: auto;
+  padding-inline: var(--space-3);
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+.moreActive {
+  color: var(--color-pearl);
+  background: var(--color-basin);
+  box-shadow: inset 0 -2px 0 var(--color-water);
+}
+
+/*
+ * Narrow windows (phones): a Menu button; the links open as a list under the header.
+ * Keep the width in step with COMPACT_NAV_QUERY in GlobalNavigation.tsx.
+ */
+@media (max-width: 720px) {
+  .menuButton {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--hit-min);
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid color-mix(in srgb, var(--color-pearl) 18%, transparent);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-pearl);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-strong);
+  }
+
+  .menuButton[aria-expanded='true'] {
+    background: var(--color-basin);
+    border-color: color-mix(in srgb, var(--color-pearl) 35%, transparent);
+  }
+
+  .list {
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .navContent {
+    display: none;
+  }
+
+  .navContent[data-open] {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-1);
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    max-height: calc(100vh - 64px);
+    max-height: calc(100dvh - 64px);
+    overflow-y: auto;
+    padding: var(--space-2) var(--space-4) var(--space-4);
+    background: var(--color-deep);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-silt) 45%, transparent);
+    box-shadow: 0 16px 32px rgb(0 0 0 / 0.45);
+  }
+
+  .list a {
+    flex: 1;
+    min-height: 44px;
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-md);
+  }
+
+  .moreButton {
+    width: 100%;
+    min-height: 44px;
+    justify-content: flex-start;
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-md);
+  }
+}
+
+@media (max-width: 420px) {
+  .header {
+    padding-inline: var(--space-3);
+  }
+}

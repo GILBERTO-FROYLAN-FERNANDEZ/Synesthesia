@@ -5,6 +5,7 @@
  *   signatures/<id>.sig.json          every signature
  *   compositions/<id>.spcomp.json     every composition
  *   albums/<id>.spalbum.json          every album record
+ *   media/<id>.(webm|mp4)             separately stored performance recordings
  *
  * Restoring validates everything first (formats, each signature's content hash, and each
  * album record; a placeholder album from before albums had a format comes back as it
@@ -38,16 +39,18 @@ import { LibraryError, errorDetail } from './errors';
 import { signatureMetaOf } from './signatures';
 import { requestPersistenceOnce } from './storage';
 import { tryThumbnail } from './thumbnails';
-import type { StoredAlbum } from './types';
+import type { StoredAlbum, StoredMediaAsset } from './types';
 import { nowIso } from './util';
 
 export const BACKUP_FORMAT = 'sp-backup';
-export const BACKUP_VERSION = 1;
+export const BACKUP_VERSION = 2;
 export const BACKUP_FILE_EXTENSION = '.spbackup.zip';
 const MANIFEST = 'manifest.json';
 
 /** Upgrades from older backup manifests, keyed by the version they upgrade from. */
-export const BACKUP_MIGRATIONS: Readonly<Record<number, Migration>> = {};
+export const BACKUP_MIGRATIONS: Readonly<Record<number, Migration>> = {
+  1: (raw) => ({ ...raw, version: 2, assets: [] }),
+};
 
 export const BACKUP_MESSAGES = {
   notBackup: "This file isn't a Synesthesia backup.",
@@ -63,6 +66,15 @@ export interface BackupManifest {
   signatures: { id: string; name: string; contentHash: string; updatedAt: string; file: string }[];
   compositions: { id: string; name: string; file: string }[];
   albums: { id: string; file: string }[];
+  assets: {
+    id: string;
+    kind: StoredMediaAsset['kind'];
+    mimeType: string;
+    createdAt: string;
+    duration: number;
+    fileName: string;
+    file: string;
+  }[];
 }
 
 export interface BackupContents {
@@ -70,6 +82,7 @@ export interface BackupContents {
   signatures: { signature: KineticSignature; updatedAt: string }[];
   compositions: Composition[];
   albums: StoredAlbum[];
+  assets: StoredMediaAsset[];
 }
 
 export interface RestoreCounts {
@@ -81,6 +94,7 @@ export interface RestoreSummary {
   signatures: RestoreCounts;
   compositions: RestoreCounts;
   albums: RestoreCounts;
+  assets?: RestoreCounts;
 }
 
 function zipAsync(files: Record<string, Uint8Array>): Promise<Uint8Array> {
@@ -103,12 +117,19 @@ function pathFor(folder: string, id: string, extension: string): string {
 /** The whole library as a `.spbackup.zip` blob. */
 export async function createBackup(): Promise<Blob> {
   const db = await openLibraryDb();
-  const tx = db.transaction(['signatures', 'signatureMeta', 'compositions', 'albums']);
-  const [signatures, metas, compositions, albums] = await Promise.all([
+  const tx = db.transaction([
+    'signatures',
+    'signatureMeta',
+    'compositions',
+    'albums',
+    'mediaAssets',
+  ]);
+  const [signatures, metas, compositions, albums, assets] = await Promise.all([
     tx.objectStore('signatures').getAll(),
     tx.objectStore('signatureMeta').getAll(),
     tx.objectStore('compositions').getAll(),
     tx.objectStore('albums').getAll(),
+    tx.objectStore('mediaAssets').getAll(),
   ]);
   await tx.done;
   const updatedAt = new Map(metas.map((m) => [m.id, m.updatedAt]));
@@ -121,6 +142,7 @@ export async function createBackup(): Promise<Blob> {
     signatures: [],
     compositions: [],
     albums: [],
+    assets: [],
   };
   for (const sig of signatures) {
     const file = pathFor('signatures', sig.id, '.sig.json');
@@ -142,6 +164,20 @@ export async function createBackup(): Promise<Blob> {
     const file = pathFor('albums', album.id, '.spalbum.json');
     files[file] = strToU8(serializeStoredAlbum(album));
     manifest.albums.push({ id: album.id, file });
+  }
+  for (const asset of assets) {
+    const extension = asset.mimeType.includes('mp4') ? '.mp4' : '.webm';
+    const file = pathFor('media', asset.id, extension);
+    files[file] = new Uint8Array(await asset.blob.arrayBuffer());
+    manifest.assets.push({
+      id: asset.id,
+      kind: asset.kind,
+      mimeType: asset.mimeType,
+      createdAt: asset.createdAt,
+      duration: asset.duration,
+      fileName: asset.fileName,
+      file,
+    });
   }
   files[MANIFEST] = strToU8(formatJson(manifest));
   const bytes = await zipAsync(files);
@@ -206,6 +242,27 @@ function readManifest(text: string): BackupManifest {
     albums: list('albums').map((o, i) => ({
       id: readString(o, 'id', `albums[${i}]`, fail, { nonEmpty: true }),
       file: readString(o, 'file', `albums[${i}]`, fail, { nonEmpty: true }),
+    })),
+    assets: list('assets').map((o, i) => ({
+      id: readString(o, 'id', `assets[${i}]`, fail, { nonEmpty: true }),
+      kind: (() => {
+        const value = readString(o, 'kind', `assets[${i}]`, fail, { nonEmpty: true });
+        if (value !== 'generated-video' && value !== 'source-video') {
+          return fail(`assets[${i}].kind`, 'expected generated-video or source-video');
+        }
+        return value;
+      })(),
+      mimeType: readString(o, 'mimeType', `assets[${i}]`, fail, { nonEmpty: true }),
+      createdAt: readString(o, 'createdAt', `assets[${i}]`, fail, short),
+      duration: (() => {
+        const value = o.duration;
+        if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+          return fail(`assets[${i}].duration`, 'expected a positive duration');
+        }
+        return value;
+      })(),
+      fileName: readString(o, 'fileName', `assets[${i}]`, fail, { nonEmpty: true }),
+      file: readString(o, 'file', `assets[${i}]`, fail, { nonEmpty: true }),
     })),
   };
 }
@@ -279,7 +336,21 @@ export async function readBackup(file: Blob): Promise<BackupContents> {
     albums.push(album);
   }
 
-  return { manifest, signatures, compositions, albums };
+  const assets: StoredMediaAsset[] = manifest.assets.map((entry) => {
+    const bytes = entries[entry.file];
+    if (!bytes) throw damaged(`recording "${entry.fileName}"`, `${entry.file} is missing`);
+    return {
+      id: entry.id,
+      kind: entry.kind,
+      blob: new Blob([bytes], { type: entry.mimeType }),
+      mimeType: entry.mimeType,
+      createdAt: entry.createdAt,
+      duration: entry.duration,
+      fileName: entry.fileName,
+    };
+  });
+
+  return { manifest, signatures, compositions, albums, assets };
 }
 
 /** Restore a backup into the library (see the file comment). Returns what changed. */
@@ -291,16 +362,21 @@ export async function restoreBackup(file: Blob): Promise<RestoreSummary> {
   );
 
   const db = await openLibraryDb();
-  const tx = db.transaction(['signatures', 'signatureMeta', 'compositions', 'albums'], 'readwrite');
-  const [sigKeys, compositionKeys, albumKeys] = await Promise.all([
+  const tx = db.transaction(
+    ['signatures', 'signatureMeta', 'compositions', 'albums', 'mediaAssets'],
+    'readwrite',
+  );
+  const [sigKeys, compositionKeys, albumKeys, assetKeys] = await Promise.all([
     tx.objectStore('signatures').getAllKeys(),
     tx.objectStore('compositions').getAllKeys(),
     tx.objectStore('albums').getAllKeys(),
+    tx.objectStore('mediaAssets').getAllKeys(),
   ]);
   const summary: RestoreSummary = {
     signatures: { added: 0, replaced: 0 },
     compositions: { added: 0, replaced: 0 },
     albums: { added: 0, replaced: 0 },
+    assets: { added: 0, replaced: 0 },
   };
   const count = (counts: RestoreCounts, existing: Set<string>, id: string) => {
     if (existing.has(id)) counts.replaced++;
@@ -324,6 +400,11 @@ export async function restoreBackup(file: Blob): Promise<RestoreSummary> {
     count(summary.albums, hasAlbum, album.id);
     writes.push(tx.objectStore('albums').put(album));
   }
+  const hasAsset = new Set(assetKeys);
+  for (const asset of contents.assets) {
+    count(summary.assets as RestoreCounts, hasAsset, asset.id);
+    writes.push(tx.objectStore('mediaAssets').put(asset));
+  }
   await Promise.all([...writes, tx.done]);
   void requestPersistenceOnce();
   return summary;
@@ -341,6 +422,7 @@ export function describeRestore(summary: RestoreSummary): string {
     [summary.compositions, 'composition', 'compositions'],
     [summary.albums, 'album', 'albums'],
   ];
+  if (summary.assets) kinds.push([summary.assets, 'recording', 'recordings']);
   for (const [{ added, replaced }, one, many] of kinds) {
     if (added > 0 && replaced > 0) {
       parts.push(`${plural(added + replaced, one, many)} (${added} added, ${replaced} replaced)`);
