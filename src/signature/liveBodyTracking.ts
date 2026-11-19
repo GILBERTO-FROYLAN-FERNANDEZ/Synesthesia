@@ -9,7 +9,7 @@ export function trackLiveBodyTrackingVideo(
     video: HTMLVideoElement,
     getNoiseFloor: () => number,
     onMotion: (frame: SignatureFrame, onset: boolean) => void,
-    onError: () => void,
+    onError: (reason: string) => void,
 ): () => void {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -30,7 +30,7 @@ export function trackLiveBodyTrackingVideo(
     if (disposed) return;
     if (message) console.warn('Body tracking unavailable:', message);
     dispose();
-    onError();
+    onError(message ?? 'Body tracking worker stopped unexpectedly.');
   };
   bodyTrackingWorker.onerror =(event: ErrorEvent) => {
       console.error('worker', {

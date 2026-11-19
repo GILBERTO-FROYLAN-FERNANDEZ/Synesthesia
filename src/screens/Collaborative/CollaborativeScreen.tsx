@@ -16,6 +16,7 @@ import {
 import { PlaybackClock } from '../Signature/playbackClock';
 import { useCamera } from '../Perform/useCamera';
 import { LivePerformanceRuntime } from '../Perform/liveRuntime';
+import type { LiveTrackingState } from '../Perform/liveMotion';
 import styles from './CollaborativeScreen.module.css';
 import { motionRegion } from './motionGrid';
 import { useManualSound } from './useManualSound';
@@ -104,7 +105,7 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
   const [intensity, setIntensity] = useState(0.7);
   const [elapsed, setElapsed] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
-  const [trackingMode, setTrackingMode] = useState<'starting' | 'body' | 'block' | 'unavailable'>('unavailable');
+  const [trackingState, setTrackingState] = useState<LiveTrackingState | null>(null);
   const [motionEnergy, setMotionEnergy] = useState(0);
   const [visualId, setVisualId] = useState('water');
   const [visualNotice, setVisualNotice] = useState<string | null>(null);
@@ -168,7 +169,7 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
     let disposed = false;
     let runtime: LivePerformanceRuntime | null = null;
     let canvas: HTMLCanvasElement | null = null;
-    setTrackingMode('starting');
+    setTrackingState({ kind: 'loading' });
     setRuntimeReady(false);
     setLiveError(null);
     setVisualNotice(null);
@@ -182,8 +183,8 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
         runtime = new LivePerformanceRuntime(videoRef.current, canvas, camera.stream);
         const current = runtime;
         runtimeRef.current = current;
-        current.onTrackingMode = (mode) => {
-          if (!disposed) setTrackingMode(mode);
+        current.onTrackingState = (state) => {
+          if (!disposed) setTrackingState(state);
         };
         current.onMotion = (frame) => {
           if (disposed) return;
@@ -219,7 +220,7 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
         setRuntimeReady(true);
       } catch (caught) {
         if (disposed) return;
-        setTrackingMode('unavailable');
+        setTrackingState(null);
         setLiveError(caught instanceof Error ? caught.message : 'Live tracking could not start.');
         if (runtime) {
           stoppingRuntimeRef.current = runtime.stop();
@@ -233,7 +234,7 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
       disposed = true;
       if (runtime) {
         runtime.onMotion = null;
-        runtime.onTrackingMode = null;
+        runtime.onTrackingState = null;
         stoppingRuntimeRef.current = runtime.stop();
       }
       canvas?.remove();
@@ -379,11 +380,11 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
             </div>
             <div>
               <span>Motion tracking</span>
-              <strong data-tone={trackingMode === 'unavailable' ? 'honey' : 'water'}>
+              <strong data-tone={!trackingState || trackingState.kind === 'fallback' ? 'honey' : 'water'}>
                 {camera.state !== 'connected' ? 'Awaiting camera' :
-                  trackingMode === 'body' ? 'Body tracking live' :
-                    trackingMode === 'block' ? 'Camera motion live' :
-                      trackingMode === 'starting' ? 'Starting…' : 'Unavailable'}
+                  trackingState?.kind === 'body' ? 'Body tracking live' :
+                    trackingState?.kind === 'fallback' ? 'Camera motion fallback' :
+                      trackingState?.kind === 'loading' ? 'Loading body tracking' : 'Unavailable'}
               </strong>
             </div>
             <div>
@@ -403,6 +404,11 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
                 activeRegion === null ? 'Move in front of the camera to activate a sound region.' :
                   `Movement is activating ${REGION_NAMES[activeRegion]}.`}
           </p>
+          {camera.state === 'connected' && trackingState?.kind === 'fallback' ? (
+            <p className={styles.trackingError} role="alert">
+              Body tracking unavailable: {trackingState.reason} Camera motion tracking is still active.
+            </p>
+          ) : null}
           {liveError ? <p className={styles.trackingError} role="alert">{liveError}</p> : null}
           <div className={styles.panelActions}>
             <Button
@@ -633,7 +639,8 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
         </div>
         <div className={styles.memberState}>
           <span>Performer A</span>
-          <strong>{camera.state === 'connected' ? trackingMode === 'body' ? 'Body tracking' : 'Camera motion' : 'Awaiting camera'}</strong>
+          <strong>{camera.state === 'connected' ? trackingState?.kind === 'body' ? 'Body tracking' :
+            trackingState?.kind === 'fallback' ? 'Camera motion fallback' : 'Loading body tracking' : 'Awaiting camera'}</strong>
         </div>
         <div className={styles.memberState}>
           <span>Collaborator B</span>

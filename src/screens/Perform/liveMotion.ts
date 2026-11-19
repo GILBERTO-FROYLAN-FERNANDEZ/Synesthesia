@@ -13,6 +13,11 @@ const CELL_W = WIDTH / COLS;
 const CELL_H = HEIGHT / ROWS;
 const SEARCH = 2;
 
+export type LiveTrackingState =
+  | { kind: 'loading' }
+  | { kind: 'body' }
+  | { kind: 'fallback'; reason: string };
+
 function emptyFeatureRecord(): SignatureFrame['features'] {
   return Object.fromEntries(FEATURE_NAMES.map((name) => [name, 0])) as SignatureFrame['features'];
 }
@@ -59,7 +64,7 @@ export class LiveMotionTracker {
   private mode: 'body' | 'block' = 'block';
   private bodyFrames = 0;
   onFrame: ((frame: SignatureFrame) => void) | null = null;
-  onTrackingMode: ((mode: 'body' | 'block') => void) | null = null;
+  onTrackingState: ((state: LiveTrackingState) => void) | null = null;
 
   constructor(video: HTMLVideoElement) {
     this.video = video;
@@ -92,7 +97,7 @@ export class LiveMotionTracker {
     this.captureStarted = performance.now();
     this.lastCapture = 0;
     this.mode = 'block';
-    this.onTrackingMode?.('block');
+    this.onTrackingState?.({ kind: 'loading' });
     this.raf = requestAnimationFrame(this.tick);
     try {
       this.stopBodyTracking = trackLiveBodyTrackingVideo(
@@ -100,23 +105,29 @@ export class LiveMotionTracker {
         () => 0.002 / this.sensitivity,
         (frame) => {
           window.clearTimeout(this.bodyTimeout);
-          this.bodyTimeout = 0;
+          this.bodyTimeout = window.setTimeout(
+            () => this.useBlockTracker('Body tracking stopped returning camera frames.'),
+            5_000,
+          );
           if (this.mode !== 'body') {
             cancelAnimationFrame(this.raf);
             this.mode = 'body';
-            this.onTrackingMode?.('body');
+            this.onTrackingState?.({ kind: 'body' });
           }
           this.bodyFrames++;
           this.current = { ...frame, t: (performance.now() - this.captureStarted) / 1000 };
           this.captureField(this.resampleField(frame), this.current.t);
           this.onFrame?.(this.current);
         },
-        () => this.useBlockTracker(),
+        (reason) => this.useBlockTracker(reason),
       );
-      this.bodyTimeout = window.setTimeout(() => this.useBlockTracker(), 12_000);
+      this.bodyTimeout = window.setTimeout(
+        () => this.useBlockTracker('The body tracking model did not return a frame within 12 seconds.'),
+        12_000,
+      );
     } catch (caught) {
       console.warn('Body tracking could not start; using camera optical flow.', caught);
-      this.useBlockTracker();
+      this.useBlockTracker(caught instanceof Error ? caught.message : 'Body tracking could not start.');
     }
   }
 
@@ -165,15 +176,15 @@ export class LiveMotionTracker {
     return finalizeSignature(body, name);
   }
 
-  private useBlockTracker(): void {
+  private useBlockTracker(reason: string): void {
     window.clearTimeout(this.bodyTimeout);
     this.stopBodyTracking?.();
     this.stopBodyTracking = null;
+    this.onTrackingState?.({ kind: 'fallback', reason });
     if (this.mode === 'block') return;
     this.mode = 'block';
     this.previous = null;
     this.lastCapture = 0;
-    this.onTrackingMode?.('block');
     this.raf = requestAnimationFrame(this.tick);
   }
 

@@ -7,7 +7,7 @@ import { getVisualContext, releaseVisualContext } from '../../materials/visual/s
 import type { SignatureFrame, SignatureSampler } from '../../signature/types';
 import type { RecordedPart } from './liveSession';
 import { LiveMotionActivity } from './liveActivity';
-import { LiveMotionTracker } from './liveMotion';
+import { LiveMotionTracker, type LiveTrackingState } from './liveMotion';
 
 class LiveSampler implements SignatureSampler {
   readonly duration = 86_400;
@@ -107,7 +107,7 @@ export class LivePerformanceRuntime {
   private recordingProblem: string | null = null;
   onMotion: ((frame: SignatureFrame) => void) | null = null;
   onActivity: ((active: boolean) => void) | null = null;
-  onTrackingMode: ((mode: 'body' | 'block') => void) | null = null;
+  onTrackingState: ((state: LiveTrackingState) => void) | null = null;
 
   constructor(video: HTMLVideoElement, canvas: HTMLCanvasElement, cameraStream: MediaStream) {
     this.cameraStream = cameraStream;
@@ -134,7 +134,7 @@ export class LivePerformanceRuntime {
       this.updateActivity(this.activity.update(frame.features.energy, performance.now(), this.sensitivity));
       this.onMotion?.(frame);
     };
-    this.tracker.onTrackingMode = (mode) => this.onTrackingMode?.(mode);
+    this.tracker.onTrackingState = (state) => this.onTrackingState?.(state);
   }
 
   get recording(): boolean {

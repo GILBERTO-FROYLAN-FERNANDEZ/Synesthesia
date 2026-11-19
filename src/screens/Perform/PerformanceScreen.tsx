@@ -11,6 +11,7 @@ import { Button } from '../../ui/Button';
 import { Slider } from '../../ui/Slider';
 import { Toggle } from '../../ui/Toggle';
 import { LivePerformanceRuntime } from './liveRuntime';
+import type { LiveTrackingState } from './liveMotion';
 import {
   completePerformance,
   getActivePerformance,
@@ -53,7 +54,7 @@ export function PerformanceScreen() {
   const [status, setStatus] = useState(session ? 'Starting live materials…' : 'No live session');
   const [error, setError] = useState<string | null>(null);
   const [visualNotice, setVisualNotice] = useState<string | null>(null);
-  const [trackingMode, setTrackingMode] = useState<'body' | 'block'>('block');
+  const [trackingState, setTrackingState] = useState<LiveTrackingState>({ kind: 'loading' });
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -91,9 +92,10 @@ export function PerformanceScreen() {
       runtime = new LivePerformanceRuntime(video, canvas, session.stream);
       runtimeRef.current = runtime;
       runtime.onActivity = setSoundActive;
-      runtime.onTrackingMode = (mode) => {
-        setTrackingMode(mode);
-        setStatus(mode === 'body' ? 'Body tracking live' : 'Camera motion tracking live');
+      runtime.onTrackingState = (state) => {
+        setTrackingState(state);
+        setStatus(state.kind === 'body' ? 'Body tracking live' :
+          state.kind === 'loading' ? 'Loading body tracking' : 'Camera motion tracking live');
       };
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'The live workspace could not start.');
@@ -312,7 +314,14 @@ export function PerformanceScreen() {
           <div className={styles.tracking}>
             <strong>Movement energy</strong>
             <div><span style={{ width: `${energy * 100}%` }} /></div>
-            <small>{trackingMode === 'body' ? 'Body-segmented optical flow' : 'Camera-derived block optical flow'} · {Math.round(energy * 100)}%</small>
+            <small>{trackingState.kind === 'body' ? 'Body-segmented optical flow' :
+              trackingState.kind === 'loading' ? 'Loading body tracking · camera motion active' :
+                'Camera-derived block optical flow'} · {Math.round(energy * 100)}%</small>
+            {trackingState.kind === 'fallback' ? (
+              <small className={styles.trackingWarning} role="alert">
+                Body tracking unavailable: {trackingState.reason} Camera motion tracking is still active.
+              </small>
+            ) : null}
             <small role="status">Sound response: {settings.muted ? 'Muted' : soundActive ? 'Active' : 'Waiting for movement'}</small>
           </div>
           <label>

@@ -27,6 +27,38 @@ test('live body tracking initializes with the local model', async ({ page }) => 
   expect(messages.filter((message) => message.includes('Body tracking unavailable'))).toEqual([]);
 });
 
+test('body tracking failure is visible while camera motion keeps running', async ({ page }) => {
+  await page.addInitScript(() => {
+    const NativeWorker = window.Worker;
+    class FailingBodyWorker {
+      onmessage: ((event: MessageEvent) => void) | null = null;
+      onerror = null;
+      postMessage() {
+        window.setTimeout(() => {
+          this.onmessage?.(new MessageEvent('message', {
+            data: { error: true, msg: 'Test body model unavailable.' },
+          }));
+        }, 0);
+      }
+      terminate() {}
+    }
+    Object.defineProperty(window, 'Worker', {
+      configurable: true,
+      value: function (url: string | URL, options?: WorkerOptions) {
+        return String(url).includes('liveBodyTracking.worker')
+          ? new FailingBodyWorker()
+          : new NativeWorker(url, options);
+      },
+    });
+  });
+  await page.goto('./#/perform');
+  await page.getByRole('button', { name: 'Enable Camera' }).click();
+  await page.getByRole('button', { name: /Start Performance/ }).click();
+  await expect(page.getByRole('alert')).toContainText('Body tracking unavailable: Test body model unavailable.');
+  await expect(page.getByText(/Camera-derived block optical flow/)).toBeVisible();
+  await expect(page.getByText('Camera motion tracking live')).toBeVisible();
+});
+
 test('unsupported float textures select a compatible live visual', async ({ page }) => {
   await page.goto('./#/perform');
   await page.getByRole('button', { name: 'Enable Camera' }).click();

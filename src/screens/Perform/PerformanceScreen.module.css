@@ -13,6 +13,7 @@
 .tracking>div{height:7px;overflow:hidden;border-radius:999px;background:color-mix(in srgb,var(--color-pearl) 10%,transparent)}
 .tracking>div span{display:block;height:100%;background:var(--color-water);box-shadow:0 0 12px var(--color-water);transition:width 80ms linear}
 .tracking small{color:var(--color-mist)}
+.tracking .trackingWarning{color:var(--color-honey)}
 .side label{display:grid;gap:var(--space-2);color:var(--color-pearl);font-size:var(--font-size-sm);font-weight:700}
 .side select{min-height:var(--hit-min);padding:var(--space-2);border:1px solid color-mix(in srgb,var(--color-pearl) 18%,transparent);border-radius:var(--radius-md);background:var(--color-basin-raised);color:var(--color-pearl)}
 .stage{position:relative;display:grid;place-items:center;min-width:0;background:#000}
