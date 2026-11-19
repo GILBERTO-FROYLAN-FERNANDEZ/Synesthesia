@@ -34,6 +34,8 @@ import {
   type ChanceRecord,
   type Composition,
   type MaterialSettings,
+  type PerformanceMetadata,
+  type TimestampedSettingChange,
 } from './composition';
 
 export { FileFormatError } from '../signature/serialize';
@@ -53,7 +55,13 @@ export const COMPOSITION_MESSAGES = {
  * from. To change the format: bump COMPOSITION_VERSION (and the `version` type) in
  * composition.ts, register `n: (raw) => …`, and add a test that loads a real old file.
  */
-export const COMPOSITION_MIGRATIONS: Readonly<Record<number, Migration>> = {};
+export const COMPOSITION_MIGRATIONS: Readonly<Record<number, Migration>> = {
+  1: (raw) => ({
+    ...raw,
+    version: 2,
+    performance: { origin: 'studio', sourceType: 'recordedClip' },
+  }),
+};
 
 /** Upgrade a raw parsed object to the current composition version (unvalidated). */
 export function migrateComposition(raw: unknown): JsonObject {
@@ -116,6 +124,104 @@ function readChance(value: unknown, fail: Fail): ChanceRecord | null {
     });
   }
   return chance;
+}
+
+function readSettingChanges(value: unknown, fail: Fail): TimestampedSettingChange[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) return fail('performance.timestampedSettingChanges', 'expected a list');
+  return value.map((item, index) => {
+    const path = `performance.timestampedSettingChanges[${index}]`;
+    const o = readObject(item, path, fail);
+    return {
+      atSec: readNumber(o, 'atSec', path, fail, { min: 0, max: 86_400 }),
+      visualMaterialId: readString(o, 'visualMaterialId', path, fail, {
+        nonEmpty: true,
+        maxLength: 100,
+      }),
+      soundMaterialId: readString(o, 'soundMaterialId', path, fail, {
+        nonEmpty: true,
+        maxLength: 100,
+      }),
+      intensity: readNumber(o, 'intensity', path, fail, { min: 0, max: 3 }),
+      volume: readNumber(o, 'volume', path, fail, { min: 0, max: 1 }),
+      muted: readBoolean(o, 'muted', path, fail),
+      sensitivity: readNumber(o, 'sensitivity', path, fail, { min: 0, max: 2 }),
+    };
+  });
+}
+
+function readPerformance(value: unknown, fail: Fail): PerformanceMetadata {
+  const o = readObject(value, 'performance', fail);
+  const performance: PerformanceMetadata = {
+    origin: readChoice(o, 'origin', 'performance', fail, [
+      'studio',
+      'performance',
+      'collaborative',
+    ] as const),
+    sourceType: readChoice(o, 'sourceType', 'performance', fail, [
+      'recordedClip',
+      'liveCamera',
+    ] as const),
+  };
+  if (o.sessionId !== undefined)
+    performance.sessionId = readString(o, 'sessionId', 'performance', fail, {
+      nonEmpty: true,
+      maxLength: 200,
+    });
+  if (o.motionSignatureId !== undefined)
+    performance.motionSignatureId = readString(o, 'motionSignatureId', 'performance', fail, {
+      nonEmpty: true,
+      maxLength: 200,
+    });
+  if (o.sourceVideoAssetId !== undefined)
+    performance.sourceVideoAssetId = readString(o, 'sourceVideoAssetId', 'performance', fail, {
+      nonEmpty: true,
+      maxLength: 200,
+    });
+  if (o.generatedVideoAssetId !== undefined)
+    performance.generatedVideoAssetId = readString(
+      o,
+      'generatedVideoAssetId',
+      'performance',
+      fail,
+      { nonEmpty: true, maxLength: 200 },
+    );
+  if (o.duration !== undefined) {
+    performance.duration = readNumber(o, 'duration', 'performance', fail, {
+      min: 0,
+      max: 86_400,
+    });
+  }
+  if (o.recordedAt !== undefined) {
+    performance.recordedAt = readString(o, 'recordedAt', 'performance', fail, {
+      maxLength: 100,
+    });
+  }
+  if (o.recordingStatus !== undefined) {
+    performance.recordingStatus = readChoice(o, 'recordingStatus', 'performance', fail, [
+      'not-recorded',
+      'generated-only',
+      'generated-and-source',
+      'partial',
+    ] as const);
+  }
+  if (o.mappingSettings !== undefined) {
+    const m = readObject(o.mappingSettings, 'performance.mappingSettings', fail);
+    performance.mappingSettings = {
+      intensity: readNumber(m, 'intensity', 'performance.mappingSettings', fail, {
+        min: 0,
+        max: 3,
+      }),
+      volume: readNumber(m, 'volume', 'performance.mappingSettings', fail, { min: 0, max: 1 }),
+      muted: readBoolean(m, 'muted', 'performance.mappingSettings', fail),
+      sensitivity: readNumber(m, 'sensitivity', 'performance.mappingSettings', fail, {
+        min: 0,
+        max: 2,
+      }),
+    };
+  }
+  performance.timestampedSettingChanges = readSettingChanges(o.timestampedSettingChanges, fail);
+  return performance;
 }
 
 /**
@@ -186,6 +292,7 @@ export function validateComposition(raw: unknown): Composition {
     },
     status: readChoice(o, 'status', '', fail, ['draft', 'kept', 'set-aside'] as const),
     notes: readString(o, 'notes', '', fail, { maxLength: 200_000 }),
+    performance: readPerformance(o.performance, fail),
   };
   if (o.thumbnail !== undefined && o.thumbnail !== null) {
     composition.thumbnail = readString(o, 'thumbnail', '', fail, {
@@ -257,5 +364,18 @@ export function serializeComposition(c: Composition): string {
     status: c.status,
     notes: c.notes,
     thumbnail: c.thumbnail,
+    performance: {
+      origin: c.performance.origin,
+      sourceType: c.performance.sourceType,
+      sessionId: c.performance.sessionId,
+      motionSignatureId: c.performance.motionSignatureId,
+      sourceVideoAssetId: c.performance.sourceVideoAssetId,
+      generatedVideoAssetId: c.performance.generatedVideoAssetId,
+      mappingSettings: c.performance.mappingSettings,
+      timestampedSettingChanges: c.performance.timestampedSettingChanges,
+      duration: c.performance.duration,
+      recordedAt: c.performance.recordedAt,
+      recordingStatus: c.performance.recordingStatus,
+    },
   });
 }

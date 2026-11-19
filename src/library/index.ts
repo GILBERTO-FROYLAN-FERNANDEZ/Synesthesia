@@ -80,6 +80,11 @@ export {
 } from './compositions';
 export { DB_NAME, DB_VERSION, closeLibraryDb, openLibraryDb } from './db';
 export { downloadBlob, downloadText } from './download';
+export {
+  deleteMediaAssetIfUnreferenced,
+  getMediaAsset,
+  saveMediaAsset,
+} from './mediaAssets';
 export { LibraryError, errorDetail, userMessage } from './errors';
 export { IMPORT_MESSAGES, importLibraryFile, type LibraryImportResult } from './importFile';
 export { SAMPLE_WINK_PATH, importSampleWink } from './sample';
@@ -124,5 +129,5 @@ export {
   type StorageUsage,
 } from './storage';
 export { signatureThumbnail } from './thumbnails';
-export type { LegacyAlbumRecord, SignatureMeta, StoredAlbum } from './types';
+export type { LegacyAlbumRecord, SignatureMeta, StoredAlbum, StoredMediaAsset } from './types';
 export { clearWorkingState, loadWorkingState, saveWorkingState } from './workingState';

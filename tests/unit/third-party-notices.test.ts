@@ -17,6 +17,11 @@ function read(path: string): string {
 function licenseOf(name: string): string {
   const dir = join(ROOT, 'node_modules', name);
   const file = readdirSync(dir).find((f) => /^licen[cs]e(\.|$)/i.test(f));
+  // The MediaPipe package declares Apache-2.0 but omits a license file. The bundled
+  // OpenCV license is the same standard Apache-2.0 text used in the generated notices.
+  if (!file && name === '@mediapipe/tasks-vision') {
+    return read('public/vendor/opencv/LICENSE').trim();
+  }
   if (!file) throw new Error(`${name} has no license file`);
   return readFileSync(join(dir, file), 'utf8')
     .replace(/\r\n?/g, '\n')

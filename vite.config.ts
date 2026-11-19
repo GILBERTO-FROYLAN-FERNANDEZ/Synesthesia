@@ -46,8 +46,8 @@ export default defineConfig(({ mode }) => ({
         description:
           'An instrument that applies one movement’s kinetic signature to different visual and sound materials.',
         display: 'standalone',
-        background_color: '#0E1A24',
-        theme_color: '#0E1A24',
+        background_color: '#07151F',
+        theme_color: '#07151F',
         start_url: './',
         scope: './',
         icons: [{ src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],

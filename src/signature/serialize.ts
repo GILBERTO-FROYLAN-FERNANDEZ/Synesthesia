@@ -386,7 +386,10 @@ export function validateSignature(raw: unknown): KineticSignature {
   const params = readObject(ex.params, 'extraction.params', fail);
   const pp = 'extraction.params';
   const extraction: KineticSignature['extraction'] = {
-    method: readChoice(ex, 'method', 'extraction', fail, ['farneback'] as const),
+    method: readChoice(ex, 'method', 'extraction', fail, [
+      'farneback',
+      'block-matching',
+    ] as const),
     params: {
       pyrScale: readNumber(params, 'pyrScale', pp, fail),
       levels: readNumber(params, 'levels', pp, fail),

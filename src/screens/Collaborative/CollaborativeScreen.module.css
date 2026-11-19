@@ -1,0 +1,716 @@
+.workspace {
+  --font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  flex: 1;
+  min-height: calc(100vh - 64px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  background: var(--color-deep);
+  font-family: var(--font-family);
+}
+
+.workspace :is(h1, h2) {
+  font-family: 'Manrope', var(--font-family);
+}
+
+.workspaceHeader {
+  min-height: 72px;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-silt) 45%, transparent);
+  background: color-mix(in srgb, var(--color-basin) 58%, var(--color-deep));
+}
+
+.workspaceHeader h1 {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-lg);
+}
+
+.future {
+  padding: var(--space-1) var(--space-2);
+  border: 1px dashed color-mix(in srgb, var(--color-silt) 60%, transparent);
+  border-radius: var(--radius-sm);
+  color: var(--color-mist);
+  font-size: 12px;
+}
+
+.eyebrow {
+  color: var(--color-water);
+  font-size: 10px;
+  font-weight: var(--font-weight-strong);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.columns {
+  min-height: 0;
+  padding: var(--space-2);
+  display: grid;
+  grid-template-columns: 270px minmax(420px, 1fr) 360px;
+  gap: var(--space-2);
+}
+
+.performerPanel,
+.outputPanel,
+.collaboratorPanel {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--color-silt) 42%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--color-basin);
+}
+
+.performerPanel,
+.collaboratorPanel {
+  padding: var(--space-3);
+}
+
+.roleHeading {
+  min-height: 52px;
+  margin-bottom: var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.roleHeading h2 {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-md);
+}
+
+.roleIndex {
+  width: var(--space-7);
+  height: var(--space-7);
+  flex: 0 0 var(--space-7);
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-water);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-water) 10%, transparent);
+  color: var(--color-water);
+  font-weight: var(--font-weight-strong);
+}
+
+.roleIndexHoney {
+  border-color: var(--color-honey);
+  background: color-mix(in srgb, var(--color-honey) 10%, transparent);
+  color: var(--color-honey);
+}
+
+.cameraPreview {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-silt) 55%, transparent);
+  border-radius: var(--radius-md);
+  background:
+    radial-gradient(
+      circle at 50% 45%,
+      color-mix(in srgb, var(--color-water) 10%, transparent),
+      transparent 48%
+    ),
+    var(--color-surround);
+}
+
+.cameraPreview[data-connected] {
+  border-color: color-mix(in srgb, var(--color-water) 60%, transparent);
+}
+
+.cameraPreview video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.cameraEmpty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  color: var(--color-mist);
+  text-align: center;
+}
+
+.cameraEmpty strong {
+  color: var(--color-pearl);
+}
+
+.cameraEmpty small {
+  font-size: 12px;
+}
+
+.cameraGlyph {
+  width: var(--space-7);
+  height: var(--space-6);
+  border: 2px solid var(--color-water);
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 var(--space-4) color-mix(in srgb, var(--color-water) 45%, transparent);
+}
+
+.cameraBadge {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+}
+
+.statusList {
+  margin-top: var(--space-3);
+  border-top: 1px solid color-mix(in srgb, var(--color-silt) 35%, transparent);
+}
+
+.statusList > div {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-silt) 28%, transparent);
+  font-size: 12px;
+}
+
+.statusList span,
+.trackingNote,
+.mixNote,
+.outputNote {
+  color: var(--color-mist);
+}
+
+.statusList strong {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.statusList strong[data-tone='water'] {
+  color: var(--color-water);
+}
+
+.statusList strong[data-tone='honey'] {
+  color: var(--color-honey);
+}
+
+.statusList strong[data-tone='quiet'] {
+  color: var(--color-mist);
+}
+
+.energy {
+  width: 100%;
+  height: var(--space-2);
+  margin-top: var(--space-3);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-mist) 20%, transparent);
+  appearance: none;
+}
+
+.energy::-webkit-progress-bar {
+  background: color-mix(in srgb, var(--color-mist) 20%, transparent);
+}
+
+.energy::-webkit-progress-value {
+  background: var(--color-water);
+  box-shadow: 0 0 var(--space-2) var(--color-water);
+}
+
+.energy::-moz-progress-bar {
+  background: var(--color-water);
+  box-shadow: 0 0 var(--space-2) var(--color-water);
+}
+
+.trackingNote {
+  min-height: 36px;
+  margin: var(--space-2) 0 var(--space-3);
+  font-size: 11px;
+}
+
+.panelActions {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.outputPanel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-basin) 72%, var(--color-surround));
+}
+
+.outputHeading {
+  min-height: 60px;
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-silt) 38%, transparent);
+}
+
+.outputHeading h2 {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-md);
+}
+
+.outputStage {
+  position: relative;
+  flex: 1;
+  min-height: 360px;
+  overflow: hidden;
+  background: var(--color-surround);
+}
+
+.outputStage:fullscreen {
+  width: 100%;
+  height: 100%;
+}
+
+.wake {
+  position: absolute;
+  inset: 0;
+}
+
+.liveCanvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  visibility: hidden;
+}
+
+.liveCanvas[data-ready] {
+  visibility: visible;
+}
+
+.liveCanvas canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.trackingError {
+  color: var(--color-honey);
+  font-size: 12px;
+}
+
+.cameraSelect {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+  color: var(--color-mist);
+  font-size: 12px;
+}
+
+.cameraSelect select {
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--color-silt);
+  border-radius: var(--radius-sm);
+  background: var(--color-basin-raised);
+  color: var(--color-pearl);
+}
+
+.outputWash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 30% 55%, color-mix(in srgb, var(--color-water) 9%, transparent), transparent 35%),
+    radial-gradient(circle at 68% 42%, color-mix(in srgb, var(--color-honey) 6%, transparent), transparent 30%);
+}
+
+.outputStatus {
+  position: absolute;
+  left: var(--space-3);
+  bottom: var(--space-3);
+  z-index: 3;
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid color-mix(in srgb, var(--color-silt) 55%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-deep) 85%, transparent);
+  backdrop-filter: blur(var(--space-2));
+  font-size: 11px;
+}
+
+.outputStatus span {
+  color: var(--color-water);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.outputStatus strong {
+  margin-top: var(--space-1);
+  color: var(--color-pearl);
+}
+
+.regionPulse {
+  position: absolute;
+  z-index: 2;
+  width: 33.333%;
+  height: 33.333%;
+  border: 2px solid var(--color-water);
+  background: color-mix(in srgb, var(--color-water) 9%, transparent);
+  box-shadow:
+    inset 0 0 var(--space-7) color-mix(in srgb, var(--color-water) 18%, transparent),
+    0 0 var(--space-4) color-mix(in srgb, var(--color-water) 55%, transparent);
+  pointer-events: none;
+}
+
+.regionPulse[data-region='0'],
+.regionPulse[data-region='3'],
+.regionPulse[data-region='6'] {
+  left: 0;
+}
+
+.regionPulse[data-region='1'],
+.regionPulse[data-region='4'],
+.regionPulse[data-region='7'] {
+  left: 33.333%;
+}
+
+.regionPulse[data-region='2'],
+.regionPulse[data-region='5'],
+.regionPulse[data-region='8'] {
+  left: 66.666%;
+}
+
+.regionPulse[data-region='0'],
+.regionPulse[data-region='1'],
+.regionPulse[data-region='2'] {
+  top: 0;
+}
+
+.regionPulse[data-region='3'],
+.regionPulse[data-region='4'],
+.regionPulse[data-region='5'] {
+  top: 33.333%;
+}
+
+.regionPulse[data-region='6'],
+.regionPulse[data-region='7'],
+.regionPulse[data-region='8'] {
+  top: 66.666%;
+}
+
+.outputNote {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid color-mix(in srgb, var(--color-silt) 32%, transparent);
+  font-size: 11px;
+}
+
+.collaboratorPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.mappingTab,
+.mixTab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.manualMode {
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--color-water);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-water) 7%, transparent);
+}
+
+.manualMode small {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--color-mist);
+  font-size: 10px;
+}
+
+.mappingGrid {
+  aspect-ratio: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid color-mix(in srgb, var(--color-silt) 50%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--color-deep);
+}
+
+.mappingGrid .regionCell {
+  min-width: 0;
+  min-height: 0;
+  padding: var(--space-1);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  border-color: color-mix(in srgb, var(--color-silt) 46%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-basin-raised) 72%, transparent);
+  color: var(--color-mist);
+}
+
+.regionCell span {
+  font-size: 9px;
+}
+
+.regionCell strong {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--color-pearl);
+  font-size: 11px;
+  text-overflow: ellipsis;
+}
+
+.mappingGrid .regionCell[aria-pressed='true'] {
+  border-color: var(--color-honey);
+  background: color-mix(in srgb, var(--color-honey) 12%, var(--color-basin-raised));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-honey) 35%, transparent);
+}
+
+.mappingGrid .regionCell[data-active] {
+  border-color: var(--color-water);
+  box-shadow:
+    inset 0 0 0 1px var(--color-water),
+    0 0 var(--space-2) color-mix(in srgb, var(--color-water) 55%, transparent);
+}
+
+.mappingLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  color: var(--color-mist);
+  font-size: 10px;
+}
+
+.mappingLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.mappingLegend i {
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: 50%;
+}
+
+.mappingLegend i[data-tone='selected'] {
+  background: var(--color-honey);
+}
+
+.mappingLegend i[data-tone='active'] {
+  background: var(--color-water);
+}
+
+.preset {
+  padding-top: var(--space-3);
+  border-top: 1px solid color-mix(in srgb, var(--color-silt) 35%, transparent);
+}
+
+.preset > button {
+  margin-top: var(--space-1);
+}
+
+.mixTab {
+  padding: var(--space-2) 0;
+  gap: var(--space-4);
+}
+
+.mixNote {
+  margin: 0;
+  font-size: 11px;
+}
+
+.soundError {
+  margin: 0;
+  padding: var(--space-2);
+  border-left: 3px solid var(--color-alert);
+  background: color-mix(in srgb, var(--color-alert) 8%, transparent);
+  color: var(--color-pearl);
+  font-size: 11px;
+}
+
+.sessionSummary {
+  margin-top: auto;
+  padding: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--color-honey) 45%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-honey) 7%, var(--color-deep));
+}
+
+.sessionSummary h3 {
+  margin: var(--space-1) 0 var(--space-2);
+}
+
+.sessionSummary p {
+  margin: 0 0 var(--space-3);
+  color: var(--color-mist);
+  font-size: 11px;
+}
+
+.sessionSummary > div {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.performanceBar {
+  min-height: 94px;
+  padding: var(--space-2) var(--space-4);
+  display: grid;
+  grid-template-columns: auto 90px minmax(120px, auto) minmax(140px, auto) minmax(190px, 260px) auto;
+  align-items: center;
+  gap: var(--space-4);
+  border-top: 1px solid color-mix(in srgb, var(--color-silt) 55%, transparent);
+  background: color-mix(in srgb, var(--color-basin) 64%, var(--color-deep));
+  box-shadow: 0 calc(var(--space-2) * -1) var(--space-5)
+    color-mix(in srgb, var(--color-surround) 28%, transparent);
+}
+
+.liveState {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-mist);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-strong);
+}
+
+.liveState i {
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: 50%;
+  background: var(--color-silt);
+}
+
+.liveState[data-live] {
+  color: var(--color-water);
+}
+
+.liveState[data-live] i {
+  background: var(--color-water);
+  box-shadow: 0 0 var(--space-2) var(--color-water);
+}
+
+.elapsed,
+.memberState {
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+}
+
+.elapsed span,
+.memberState span {
+  color: var(--color-mist);
+}
+
+.elapsed strong {
+  font-size: var(--font-size-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.memberState strong {
+  color: var(--color-pearl);
+}
+
+.barVolume {
+  min-width: 0;
+}
+
+.stopButton {
+  border-color: color-mix(in srgb, var(--color-alert) 60%, transparent);
+  color: var(--color-pearl);
+}
+
+.endedLabel {
+  color: var(--color-honey);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-strong);
+  text-align: right;
+}
+
+@media (max-width: 1180px) {
+  .columns {
+    grid-template-columns: 230px minmax(360px, 1fr) 320px;
+  }
+
+  .future {
+    display: none;
+  }
+
+  .performanceBar {
+    grid-template-columns: auto 80px 1fr 1fr minmax(170px, 220px) auto;
+    gap: var(--space-2);
+  }
+}
+
+@media (max-width: 960px) {
+  .workspace {
+    display: block;
+  }
+
+  .workspaceHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .columns {
+    grid-template-columns: 1fr;
+  }
+
+  .performerPanel,
+  .outputPanel,
+  .collaboratorPanel {
+    overflow: visible;
+  }
+
+  .cameraPreview {
+    max-height: 420px;
+  }
+
+  .outputStage {
+    height: min(64vh, 620px);
+  }
+
+  .performanceBar {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .memberState,
+  .barVolume {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .workspaceHeader {
+    padding: var(--space-3);
+  }
+
+  .outputStage {
+    min-height: 300px;
+  }
+
+  .performanceBar {
+    grid-template-columns: auto 1fr;
+  }
+
+  .performanceBar > button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}

@@ -16,6 +16,10 @@ export interface ActionMenuProps {
   label: string;
   items: readonly ActionMenuItem[];
   className?: string;
+  /** Optional visible text beside the More icon; the accessible label is still required. */
+  buttonText?: string;
+  /** Marks a navigation menu as the current destination when one of its items is active. */
+  current?: boolean;
 }
 
 const supportsAnchors =
@@ -29,7 +33,7 @@ const supportsAnchors =
  * positioning keeps the menu beside its button and flips it above when there's no room
  * below. Arrow keys, Home and End move between items; Tab closes the menu.
  */
-export function ActionMenu({ label, items, className }: ActionMenuProps) {
+export function ActionMenu({ label, items, className, buttonText, current = false }: ActionMenuProps) {
   const menuId = useId();
   const anchorName = `--action-menu-${menuId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -120,8 +124,10 @@ export function ActionMenu({ label, items, className }: ActionMenuProps) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={menuId}
+        aria-current={current ? 'page' : undefined}
       >
         <MoreIcon />
+        {buttonText ? <span>{buttonText}</span> : null}
       </IconButton>
       <div
         ref={menuRef}

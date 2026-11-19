@@ -1,0 +1,370 @@
+.page {
+  --font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5) var(--space-7);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  font-family: var(--font-family);
+}
+
+.page :is(h1, h2) {
+  font-family: 'Manrope', var(--font-family);
+}
+
+.intro {
+  max-width: 720px;
+}
+
+.intro h1 {
+  margin: var(--space-1) 0 var(--space-2);
+}
+
+.intro p,
+.sectionIntro,
+.cameraMessage,
+.soundHint,
+.startPanel p {
+  margin: 0;
+  color: var(--color-mist);
+}
+
+.eyebrow {
+  color: var(--color-water);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-strong);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cameraPanel,
+.soundPanel,
+.startPanel {
+  border: 1px solid color-mix(in srgb, var(--color-silt) 45%, transparent);
+  border-radius: var(--radius-lg);
+  background: var(--color-basin);
+  box-shadow: 0 var(--space-3) var(--space-7)
+    color-mix(in srgb, var(--color-surround) 28%, transparent);
+}
+
+.cameraPanel {
+  padding: var(--space-4);
+}
+
+.panelHeading {
+  min-height: var(--hit-min);
+  margin-bottom: var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.panelHeading h2 {
+  margin: var(--space-1) 0 0;
+}
+
+.preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 62vh;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-silt) 60%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--color-surround);
+  box-shadow: inset 0 0 var(--space-7) color-mix(in srgb, var(--color-water) 8%, transparent);
+}
+
+.preview[data-connected] {
+  border-color: color-mix(in srgb, var(--color-water) 60%, transparent);
+}
+
+.video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.previewPlaceholder,
+.ribbonArt {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.previewPlaceholder {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      circle at 46% 48%,
+      color-mix(in srgb, var(--color-water) 14%, transparent),
+      transparent 38%
+    ),
+    color-mix(in srgb, var(--color-deep) 82%, var(--color-surround));
+}
+
+.ribbonArt {
+  opacity: 0.72;
+}
+
+.ribbonArt path {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.waterRibbon {
+  stroke: var(--color-water);
+  stroke-width: 10;
+  filter: drop-shadow(0 0 var(--space-3) var(--color-water));
+}
+
+.waterRibbonSoft {
+  stroke: color-mix(in srgb, var(--color-water) 45%, transparent);
+  stroke-width: 3;
+}
+
+.honeyRibbon {
+  stroke: var(--color-honey);
+  stroke-width: 5;
+  opacity: 0.72;
+  filter: drop-shadow(0 0 var(--space-2) var(--color-honey));
+}
+
+.previewCopy {
+  position: relative;
+  z-index: 2;
+  max-width: 440px;
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-pearl);
+  text-align: center;
+}
+
+.previewCopy > span:last-child {
+  color: var(--color-mist);
+  font-size: var(--font-size-sm);
+}
+
+.cameraGlyph {
+  width: var(--space-7);
+  height: var(--space-6);
+  position: relative;
+  margin-bottom: var(--space-1);
+  border: 2px solid var(--color-water);
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 var(--space-4) color-mix(in srgb, var(--color-water) 45%, transparent);
+}
+
+.cameraGlyph::after {
+  content: '';
+  position: absolute;
+  top: var(--space-2);
+  right: calc(var(--space-3) * -1);
+  border-width: var(--space-2) var(--space-3) var(--space-2) 0;
+  border-style: solid;
+  border-color: transparent var(--color-water) transparent transparent;
+  transform: rotate(180deg);
+}
+
+.previewStatus {
+  position: absolute;
+  z-index: 3;
+  top: var(--space-3);
+  left: var(--space-3);
+}
+
+.cameraName {
+  position: absolute;
+  z-index: 3;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  max-width: 70%;
+  overflow: hidden;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-deep) 82%, transparent);
+  color: var(--color-mist);
+  font-size: var(--font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cameraMessage,
+.error {
+  margin: var(--space-3) 0 0;
+  font-size: var(--font-size-sm);
+}
+
+.error {
+  padding: var(--space-3);
+  border-left: var(--space-1) solid var(--color-alert);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-alert) 9%, transparent);
+  color: var(--color-pearl);
+}
+
+.cameraSettings {
+  margin-top: var(--space-4);
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  align-items: end;
+  gap: var(--space-4);
+}
+
+.field,
+.testControl {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  color: var(--color-pearl);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-strong);
+}
+
+.field select {
+  width: 100%;
+  min-height: var(--hit-min);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--color-pearl) 18%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--color-basin-raised);
+  color: var(--color-pearl);
+}
+
+.field select:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-pearl) 40%, transparent);
+}
+
+.field select:disabled {
+  opacity: 0.5;
+}
+
+.cameraActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.soundPanel {
+  padding: var(--space-5);
+}
+
+.soundReady {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--color-water) 42%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-water) 8%, transparent);
+  color: var(--color-water);
+  font-size: var(--font-size-sm);
+}
+
+.soundGrid {
+  margin-top: var(--space-5);
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto minmax(120px, auto) minmax(260px, 1.2fr);
+  align-items: end;
+  gap: var(--space-5);
+}
+
+.testControl > button {
+  align-self: flex-start;
+}
+
+.muteControl {
+  min-height: var(--hit-min);
+  display: flex;
+  align-items: center;
+}
+
+.volumeControl {
+  padding-bottom: var(--space-1);
+}
+
+.soundHint {
+  margin-top: var(--space-4);
+  font-size: var(--font-size-sm);
+}
+
+.startPanel {
+  padding: var(--space-5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  background:
+    linear-gradient(
+      115deg,
+      color-mix(in srgb, var(--color-water) 7%, var(--color-basin)),
+      var(--color-basin) 48%,
+      color-mix(in srgb, var(--color-honey) 7%, var(--color-basin))
+    );
+}
+
+.startPanel h2 {
+  margin: var(--space-1) 0 var(--space-2);
+}
+
+.startButton {
+  min-width: 230px;
+  justify-content: space-between;
+}
+
+.startButton span {
+  padding: 2px var(--space-2);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-deep) 18%, transparent);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 900px) {
+  .soundGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: var(--space-5) var(--space-4) var(--space-7);
+  }
+
+  .cameraPanel,
+  .soundPanel,
+  .startPanel {
+    padding: var(--space-4);
+  }
+
+  .panelHeading,
+  .startPanel {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .cameraSettings,
+  .soundGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .cameraActions,
+  .cameraActions > button,
+  .startButton {
+    width: 100%;
+  }
+
+  .preview {
+    min-height: 250px;
+    aspect-ratio: auto;
+  }
+}

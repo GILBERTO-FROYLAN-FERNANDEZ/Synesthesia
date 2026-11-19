@@ -31,6 +31,39 @@ export interface RenderSettings {
 
 export type CompositionStatus = 'draft' | 'kept' | 'set-aside';
 
+export type CompositionOrigin = 'studio' | 'performance' | 'collaborative';
+export type CompositionSourceType = 'recordedClip' | 'liveCamera';
+export type RecordingStatus = 'not-recorded' | 'generated-only' | 'generated-and-source' | 'partial';
+
+export interface TimestampedSettingChange {
+  atSec: number;
+  visualMaterialId: string;
+  soundMaterialId: string;
+  intensity: number;
+  volume: number;
+  muted: boolean;
+  sensitivity: number;
+}
+
+export interface PerformanceMetadata {
+  origin: CompositionOrigin;
+  sourceType: CompositionSourceType;
+  sessionId?: string;
+  motionSignatureId?: string;
+  sourceVideoAssetId?: string;
+  generatedVideoAssetId?: string;
+  mappingSettings?: {
+    intensity: number;
+    volume: number;
+    muted: boolean;
+    sensitivity: number;
+  };
+  timestampedSettingChanges?: TimestampedSettingChange[];
+  duration?: number;
+  recordedAt?: string;
+  recordingStatus?: RecordingStatus;
+}
+
 export interface ChanceRecord {
   albumId?: string;
   index?: number;
@@ -43,7 +76,7 @@ export interface ChanceRecord {
 
 export interface Composition {
   format: 'sp-composition';
-  version: 1;
+  version: 2;
   id: string;
   name: string;
   createdAt: string;
@@ -63,10 +96,12 @@ export interface Composition {
   notes: string;
   /** Small data URL of a still of the wake. */
   thumbnail?: string;
+  /** Additive provenance and recording links. Binary media is stored outside this record. */
+  performance: PerformanceMetadata;
 }
 
 export const COMPOSITION_FORMAT = 'sp-composition';
-export const COMPOSITION_VERSION = 1;
+export const COMPOSITION_VERSION = 2;
 
 export interface ControlRange {
   min: number;

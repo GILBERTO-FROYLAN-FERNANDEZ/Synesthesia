@@ -89,7 +89,26 @@ export async function duplicateComposition(id: string): Promise<Composition> {
 }
 
 export async function deleteComposition(id: string): Promise<void> {
-  await (await openLibraryDb()).delete('compositions', id);
+  const db = await openLibraryDb();
+  const current = await db.get('compositions', id);
+  await db.delete('compositions', id);
+  if (!current) return;
+  for (const assetId of [
+    current.performance.generatedVideoAssetId,
+    current.performance.sourceVideoAssetId,
+  ]) {
+    if (!assetId) continue;
+    const remaining = await db.getAll('compositions');
+    if (
+      !remaining.some(
+        (c) =>
+          c.performance.generatedVideoAssetId === assetId ||
+          c.performance.sourceVideoAssetId === assetId,
+      )
+    ) {
+      await db.delete('mediaAssets', assetId);
+    }
+  }
 }
 
 export function compositionFileName(c: Pick<Composition, 'name'>): string {

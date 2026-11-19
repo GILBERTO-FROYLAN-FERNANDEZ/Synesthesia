@@ -1,21 +1,27 @@
 import type { ReactNode } from 'react';
 import { AlbumScreen } from '../screens/Album/AlbumScreen';
 import { NewAlbumScreen } from '../screens/Album/NewAlbumScreen';
+import { CollaborativeScreen } from '../screens/Collaborative/CollaborativeScreen';
 import { DiagnosticsScreen } from '../screens/Diagnostics/DiagnosticsScreen';
 import { GuideScreen } from '../screens/Guide/GuideScreen';
 import { HelpScreen } from '../screens/Help/HelpScreen';
 import { LibraryScreen } from '../screens/Library/LibraryScreen';
+import { CameraSetupScreen } from '../screens/Perform/CameraSetupScreen';
+import { PerformanceScreen } from '../screens/Perform/PerformanceScreen';
+import { SessionReviewScreen } from '../screens/Perform/SessionReviewScreen';
+import { MediaAssetScreen } from '../screens/Perform/MediaAssetScreen';
 import { PrepareScreen } from '../screens/Prepare/PrepareScreen';
 import { SettingsScreen } from '../screens/Settings/SettingsScreen';
 import { SignatureScreen } from '../screens/Signature/SignatureScreen';
 import { StudioScreen } from '../screens/Studio/StudioScreen';
+import { StudioLandingScreen } from '../screens/Studio/StudioLandingScreen';
 import { usePresentationStore } from '../state/presentationStore';
 import styles from './App.module.css';
 import { useScrollToTopOnArrival } from './arrival';
 import { DedicationSplash } from './DedicationSplash';
 import { FileDropGuard } from './FileDropGuard';
 import { Introduction } from './Introduction';
-import { MainNav, type NavItem } from './MainNav';
+import { GlobalNavigation } from './GlobalNavigation';
 import { href, matchPath, useHashPath } from './router';
 import { StartupGate } from './StartupGate';
 
@@ -31,8 +37,18 @@ interface RouteDef {
  */
 const ROUTES: RouteDef[] = [
   { pattern: '/', render: () => <LibraryScreen /> },
+  { pattern: '/collaborative', render: () => <CollaborativeScreen /> },
+  {
+    pattern: '/collaborative/:compositionId',
+    render: (params) => <CollaborativeScreen returnStudioId={params.compositionId} />,
+  },
+  { pattern: '/perform', render: () => <CameraSetupScreen /> },
+  { pattern: '/perform/live', render: () => <PerformanceScreen /> },
+  { pattern: '/perform/review', render: () => <SessionReviewScreen /> },
+  { pattern: '/performance/asset/:assetId', render: (params) => <MediaAssetScreen assetId={params.assetId} /> },
   { pattern: '/prepare', render: (params) => <PrepareScreen params={params} /> },
   { pattern: '/signature/:signatureId', render: (params) => <SignatureScreen params={params} /> },
+  { pattern: '/studio', render: () => <StudioLandingScreen /> },
   { pattern: '/studio/new/:signatureId', render: (params) => <StudioScreen params={params} /> },
   { pattern: '/studio/:compositionId', render: (params) => <StudioScreen params={params} /> },
   { pattern: '/album/new/:signatureId', render: (params) => <NewAlbumScreen params={params} /> },
@@ -63,15 +79,6 @@ function NotFound() {
   );
 }
 
-/** The main navigation, in the header (or its Menu on phones). */
-const NAV: NavItem[] = [
-  { path: '/', label: 'Library' },
-  { path: '/guide', label: 'Guide' },
-  { path: '/help', label: 'Help' },
-  { path: '/settings', label: 'Settings' },
-  { path: '/diagnostics', label: 'Diagnostics' },
-];
-
 export function App() {
   const path = useHashPath();
   useScrollToTopOnArrival(path);
@@ -80,14 +87,7 @@ export function App() {
   return (
     <StartupGate>
       <div className={styles.app}>
-        {presenting ? null : (
-          <header className={styles.header}>
-            <a className={styles.wordmark} href={href('/')}>
-              Synesthesia
-            </a>
-            <MainNav items={NAV} current={path} />
-          </header>
-        )}
+        {presenting ? null : <GlobalNavigation current={path} />}
         <main className={styles.main}>{resolve(path)}</main>
       </div>
       <FileDropGuard />

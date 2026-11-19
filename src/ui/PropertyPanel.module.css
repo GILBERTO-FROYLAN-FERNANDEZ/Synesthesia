@@ -1,19 +1,26 @@
 .panel {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 6px;
+}
+
+.panel > :not(.more):not(.moreList) {
+  padding: 8px 9px;
+  border: 1px solid color-mix(in srgb, var(--color-silt) 27%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--color-deep) 64%, transparent);
 }
 
 .more {
-  align-self: flex-start;
+  align-self: stretch;
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
   min-height: var(--hit-min);
   padding: 0 var(--space-2);
-  margin-left: calc(-1 * var(--space-2));
-  border: 0;
-  background: transparent;
+  margin: 2px 0 0;
+  border: 1px solid color-mix(in srgb, var(--color-silt) 32%, transparent);
+  background: color-mix(in srgb, var(--color-deep) 60%, transparent);
   color: var(--color-mist);
   font-size: var(--font-size-sm);
   border-radius: var(--radius-sm);
@@ -31,5 +38,12 @@
 .moreList {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 6px;
+}
+
+.moreList > * {
+  padding: 8px 9px;
+  border: 1px solid color-mix(in srgb, var(--color-silt) 27%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--color-deep) 64%, transparent);
 }

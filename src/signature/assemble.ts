@@ -75,6 +75,8 @@ export interface AssembleInput {
   /** The window actually used (after normalizing). */
   temporalSmoothingFrames: number;
   noiseFloor: number;
+  /** Offline clips use Farneback; live camera capture uses the low-latency block matcher. */
+  method?: KineticSignature['extraction']['method'];
   frameRate: number;
   grid: { cols: number; rows: number };
   /** Final field: frameCount × rows × cols × 2. Cleaned in place. */
@@ -141,7 +143,7 @@ function bodyOf(input: AssembleInput, prepared: Prepared, contentHash: string): 
     },
     preferredSpeed: cleanNumber(input.preferredSpeed, 1),
     extraction: {
-      method: 'farneback',
+      method: input.method ?? 'farneback',
       params: {
         pyrScale: p.pyrScale,
         levels: p.levels,
