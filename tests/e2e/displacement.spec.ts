@@ -84,19 +84,37 @@ for (const materialId of ['water', 'honey', 'smoke', 'bubbles', 'filaments']) {
 
 test('live mapping is separate from the medium and survives medium changes', async ({ page }) => {
   await page.goto('./#/studio/live');
-  const mapping = page.getByRole('radiogroup', { name: 'Visual mapping' });
-  await expect(mapping.getByRole('radio', { name: 'Displacement', exact: true })).toBeChecked();
+  await page
+    .getByRole('radiogroup', { name: 'Visual mapping' })
+    .getByRole('radio', { name: 'Movement', exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole('radiogroup', { name: 'Material source' })
+      .getByRole('radio', { name: 'Existing', exact: true }),
+  ).toBeChecked();
   for (const medium of ['Water', 'Honey', 'Smoke']) {
     await page.getByRole('button', { name: /^Visual / }).click();
     await expect(page.getByRole('option', { name: /Displacement/ })).toHaveCount(0);
     await expect(page.getByRole('option', { name: /Filaments/ })).toHaveCount(0);
     await page.getByRole('option', { name: new RegExp(`^${medium}`) }).click();
-    await expect(mapping.getByRole('radio', { name: 'Displacement', exact: true })).toBeChecked();
+    await expect(
+      page
+        .getByRole('radiogroup', { name: 'Material source' })
+        .getByRole('radio', { name: 'Existing', exact: true }),
+    ).toBeChecked();
   }
-  await mapping.getByRole('radio', { name: 'Wake', exact: true }).click();
+  await page
+    .getByRole('radiogroup', { name: 'Material source' })
+    .getByRole('radio', { name: 'Generated', exact: true })
+    .click();
   await page.getByRole('button', { name: /^Visual / }).click();
   await page.getByRole('option', { name: /^Water/ }).click();
-  await expect(mapping.getByRole('radio', { name: 'Wake', exact: true })).toBeChecked();
+  await expect(
+    page
+      .getByRole('radiogroup', { name: 'Material source' })
+      .getByRole('radio', { name: 'Generated', exact: true }),
+  ).toBeChecked();
 });
 
 test('realistic displacement surfaces render distinctly and support the filtering fallback', async ({

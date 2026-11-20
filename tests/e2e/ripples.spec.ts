@@ -177,7 +177,15 @@ test('Honey is disabled only for Ripples and switching from Honey selects Water'
 }) => {
   await page.goto('./#/studio/live');
   const mapping = page.getByRole('radiogroup', { name: 'Visual mapping' });
-  await mapping.getByRole('radio', { name: 'Lines', exact: true }).click();
+  await mapping.getByRole('radio', { name: 'Movement', exact: true }).click();
+  await page
+    .getByRole('radiogroup', { name: 'Movement coverage' })
+    .getByRole('radio', { name: 'Sampled', exact: true })
+    .click();
+  await page
+    .getByRole('radiogroup', { name: 'Material source' })
+    .getByRole('radio', { name: 'Generated', exact: true })
+    .click();
   await page.getByRole('button', { name: /^Visual / }).click();
   await page.getByRole('option', { name: /^Honey/ }).click();
   await expect(page.getByRole('button', { name: /^Visual Honey/ })).toBeVisible();
@@ -195,7 +203,7 @@ test('Honey is disabled only for Ripples and switching from Honey selects Water'
   await page.keyboard.press('ArrowDown');
   expect(await list.getAttribute('aria-activedescendant')).not.toBe(await honey.getAttribute('id'));
   await page.keyboard.press('Escape');
-  await mapping.getByRole('radio', { name: 'Displacement', exact: true }).click();
+  await mapping.getByRole('radio', { name: 'Movement', exact: true }).click();
   await picker.click();
   await expect(honey).not.toHaveAttribute('aria-disabled', 'true');
   await honey.click();

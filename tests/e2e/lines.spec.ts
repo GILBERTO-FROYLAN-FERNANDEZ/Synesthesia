@@ -66,17 +66,25 @@ for (const materialId of ['water', 'honey', 'smoke', 'bubbles']) {
   });
 }
 
-test('Lines is a separate mapping and retains its width when switching mediums', async ({
+test('Sampled generated movement and retains its width when switching mediums', async ({
   page,
 }) => {
   await page.goto('./#/studio/live');
   const mapping = page.getByRole('radiogroup', { name: 'Visual mapping' });
-  await mapping.getByRole('radio', { name: 'Lines', exact: true }).click();
+  await mapping.getByRole('radio', { name: 'Movement', exact: true }).click();
+  await page
+    .getByRole('radiogroup', { name: 'Movement coverage' })
+    .getByRole('radio', { name: 'Sampled', exact: true })
+    .click();
+  await page
+    .getByRole('radiogroup', { name: 'Material source' })
+    .getByRole('radio', { name: 'Generated', exact: true })
+    .click();
   for (const medium of ['Water', 'Honey', 'Smoke', 'Bubbles']) {
     await page.getByRole('button', { name: /^Visual / }).click();
     await expect(page.getByRole('option', { name: /^Lines/ })).toHaveCount(0);
     await page.getByRole('option', { name: new RegExp(`^${medium}`) }).click();
-    await expect(mapping.getByRole('radio', { name: 'Lines', exact: true })).toBeChecked();
+    await expect(mapping.getByRole('radio', { name: 'Movement', exact: true })).toBeChecked();
     const properties = page.getByRole('group', { name: `${medium} visual properties` });
     const more = properties.getByRole('button', { name: /^More/ });
     if (await more.count()) await more.click();
@@ -196,4 +204,23 @@ test('Honey stays smooth on curved paths and Smoke remains visible as its wisps 
       Buffer.from(image.split(',')[1], 'base64'),
     );
   }
+});
+
+test('Water sampled trails appear during the beginning of a gentle gesture', async ({ page }) => {
+  await page.goto('./dev/materials/?autoplay=0');
+  await page.waitForFunction(() => (window as unknown as Api).spVisual?.ready);
+  const base: Options = {
+    materialId: 'water',
+    mapping: 'lines',
+    kind: 'sweep',
+    steps: 36,
+    seed: 7,
+    width: 640,
+    height: 360,
+    quality: 'standard',
+    props: { density: 0.25, viscosity: 0.7 },
+  };
+  const early = await stats(page, base);
+  expect(early.litFraction).toBeGreaterThan(0.001);
+  expect((await stats(page, { ...base, kind: 'still' })).litFraction).toBe(0);
 });

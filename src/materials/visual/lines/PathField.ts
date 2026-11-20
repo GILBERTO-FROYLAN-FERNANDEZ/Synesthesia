@@ -8,6 +8,7 @@ export class PathField {
   cols = 1;
   rows = 1;
   private weights = new Float32Array(0);
+  private previous = new Float32Array(0);
   private worldWidth = 16 / 9;
   private worldHeight = 1;
 
@@ -19,9 +20,11 @@ export class PathField {
     this.rows = Math.max(8, Math.round(aspect >= 1 ? 96 / aspect : 96));
     this.field = new Float32Array(this.cols * this.rows * 2);
     this.weights = new Float32Array(this.cols * this.rows);
+    this.previous = new Float32Array(this.field.length);
   }
 
-  build(source: LineSim, width: number, dt: number): this {
+  build(source: LineSim, width: number, dt: number, holdSec = 0): this {
+    if (holdSec > 0) this.previous.set(this.field);
     this.field.fill(0);
     this.weights.fill(0);
     if (!(dt > 0)) return this;
@@ -64,6 +67,19 @@ export class PathField {
       const divisor = Math.max(1, this.weights[i]);
       this.field[i * 2] /= divisor;
       this.field[i * 2 + 1] /= divisor;
+      if (holdSec > 0) {
+        const decay = Math.exp(-dt / holdSec);
+        const u = this.field[i * 2],
+          v = this.field[i * 2 + 1];
+        const oldU = this.previous[i * 2] * decay,
+          oldV = this.previous[i * 2 + 1] * decay;
+        // A short force envelope gives rooted blades time to bend. New opposing
+        // gestures take over immediately, rather than averaging to a dead spot.
+        if (u * u + v * v < oldU * oldU + oldV * oldV && u * oldU + v * oldV >= 0) {
+          this.field[i * 2] = oldU;
+          this.field[i * 2 + 1] = oldV;
+        }
+      }
     }
     return this;
   }

@@ -64,47 +64,56 @@ export function StudioPanel() {
       <section className={styles.section} aria-label="Visual mapping">
         <h2 className={styles.sectionTitle}>Mapping</h2>
         <VisualMappingControl
-          value={composition.visual.mapping}
+          value={
+            composition.visual.materialId === 'signature' ? 'signature' : composition.visual.mapping
+          }
+          existingOnly={composition.visual.materialId === 'grass'}
           onChange={(mapping) => store().setVisualMapping(mapping)}
         />
         <p className={styles.fieldNote}>
-          {composition.visual.mapping === 'warping'
-            ? 'Movement deforms the scene, which gradually returns to rest.'
+          {composition.visual.materialId === 'signature'
+            ? 'View the movement directly, without a medium.'
             : composition.visual.mapping === 'ripples'
               ? 'Movement creates expanding ripples that soften and fade.'
-              : composition.visual.mapping === 'lines'
-                ? 'Sampled points follow the movement and leave fading trails.'
-                : composition.visual.mapping === 'displacement'
-                  ? 'Movement pushes the medium already in the frame.'
-                  : 'Movement leaves a wake in the medium.'}
+              : 'Use full movement or sampled paths to move existing material or generate new material.'}
         </p>
-      </section>
-      <MaterialSection
-        field="visual"
-        kind="Visual"
-        options={visualMetas(composition.visual.mapping).map((meta) => ({
-          ...meta,
-          disabled: composition.visual.mapping === 'ripples' && meta.id === 'honey',
-          disabledReason:
-            composition.visual.mapping === 'ripples' && meta.id === 'honey'
-              ? 'Unavailable with Ripples'
-              : undefined,
-        }))}
-        materialId={composition.visual.materialId}
-        muted={composition.mute.visual}
-        soloed={isSoloed(composition.mute, 'visual')}
-      >
-        {sections.visual.length > 0 ? (
+        {composition.visual.materialId === 'signature' && (
           <PropertyPanel
-            label="Visual material properties"
+            label="Signature properties"
             defs={sections.visual}
             values={composition.visual.properties}
-            lockedIds={locked}
-            onUnlock={(id) => store().unlock(id)}
             onChange={onChange('visual')}
           />
-        ) : null}
-      </MaterialSection>
+        )}
+      </section>
+      {composition.visual.materialId !== 'signature' && (
+        <MaterialSection
+          field="visual"
+          kind="Visual"
+          options={visualMetas(composition.visual.mapping).map((meta) => ({
+            ...meta,
+            disabled: composition.visual.mapping === 'ripples' && meta.id === 'honey',
+            disabledReason:
+              composition.visual.mapping === 'ripples' && meta.id === 'honey'
+                ? 'Unavailable with Ripples'
+                : undefined,
+          }))}
+          materialId={composition.visual.materialId}
+          muted={composition.mute.visual}
+          soloed={isSoloed(composition.mute, 'visual')}
+        >
+          {sections.visual.length > 0 ? (
+            <PropertyPanel
+              label="Visual material properties"
+              defs={sections.visual}
+              values={composition.visual.properties}
+              lockedIds={locked}
+              onUnlock={(id) => store().unlock(id)}
+              onChange={onChange('visual')}
+            />
+          ) : null}
+        </MaterialSection>
+      )}
 
       <section className={styles.section} aria-label="Linked properties">
         <div className={styles.linkRow}>

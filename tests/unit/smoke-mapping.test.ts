@@ -196,9 +196,9 @@ describe('Smoke properties', () => {
     expect(smoke?.version).toBe(1);
   });
 
-  it('is listed after Honey and before the Signature view', () => {
+  it('is listed after Honey, with Signature kept outside the medium menu', () => {
     const ids = listVisualMaterials().map((m) => m.meta.id);
     expect(ids.indexOf('smoke')).toBe(ids.indexOf('honey') + 1);
-    expect(ids.indexOf('smoke')).toBeLessThan(ids.indexOf('signature'));
+    expect(ids).not.toContain('signature');
   });
 });

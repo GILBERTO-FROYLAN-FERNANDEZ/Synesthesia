@@ -43,7 +43,7 @@ export function createComposition(input: NewCompositionInput): Composition {
     timeline: defaultTimeline(input.signature.preferredSpeed),
     linked: true,
     visual: {
-      mapping: 'displacement',
+      mapping: input.visual.id === 'signature' ? 'signature' : 'displacement',
       materialId: input.visual.id,
       materialVersion: input.visual.version,
       properties: baselineValues(input.visual.properties),

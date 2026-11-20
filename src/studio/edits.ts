@@ -1,3 +1,4 @@
+import { mappingForVisual } from '../materials/visual/movement';
 import { visualMappingProperties } from '../materials/visual/lines/properties';
 /**
  * Every edit the Studio makes to a composition's wake, as pure functions (SPEC 6.3, 9.2,
@@ -198,13 +199,31 @@ export function switchMaterial(
         : meta.properties,
     ),
     ...(field === 'visual' &&
-    (state.visual.mapping === 'lines' || state.visual.mapping === 'ripples')
+    (state.visual.mapping === 'lines' ||
+      state.visual.mapping === 'sampled-displacement' ||
+      state.visual.mapping === 'ripples')
       ? { size: own.properties.size ?? 0.5 }
       : {}),
   };
   let next: WakeState = {
     ...state,
-    [field]: { ...own, materialId: meta.id, materialVersion: meta.version, properties },
+    [field]: {
+      ...own,
+      materialId: meta.id,
+      materialVersion: meta.version,
+      properties,
+      ...(field === 'visual'
+        ? {
+            mapping:
+              meta.id === 'signature'
+                ? 'signature'
+                : mappingForVisual(
+                    meta.id,
+                    own.mapping === 'signature' ? 'displacement' : own.mapping,
+                  ),
+          }
+        : {}),
+    },
   };
   const defs = defsOf(next, catalog);
   if (state.linked) next = unify(next, defs);

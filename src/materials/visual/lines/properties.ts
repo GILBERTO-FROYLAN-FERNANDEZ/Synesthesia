@@ -19,9 +19,10 @@ export function visualMappingProperties(
   mapping?: VisualMapping,
 ): PropertyDef[] {
   if (
-    (mapping !== 'lines' && mapping !== 'ripples') ||
+    (mapping !== 'lines' && mapping !== 'sampled-displacement' && mapping !== 'ripples') ||
     defs.length === 0 ||
-    defs.some((def) => def.id === 'showReadout')
+    defs.some((def) => def.id === 'showReadout') ||
+    defs.some((def) => def.label === 'Blade size')
   )
     return [...defs];
   const descriptions =

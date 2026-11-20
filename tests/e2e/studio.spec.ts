@@ -187,6 +187,15 @@ test('play, compare, draw by chance, save and reopen a composition', async ({ pa
   await expect(page.getByText('Getting to know this computer…')).toBeHidden();
   await expect(page.getByTestId('save-state')).toHaveText('Not saved yet');
   await expect(page.locator('video')).toHaveCount(0);
+  await expect(
+    page
+      .getByRole('radiogroup', { name: 'Visual mapping' })
+      .getByRole('radio', { name: 'Signature', exact: true }),
+  ).toBeChecked();
+  await page
+    .getByRole('radiogroup', { name: 'Visual mapping' })
+    .getByRole('radio', { name: 'Movement', exact: true })
+    .click();
   await expect(page.getByRole('button', { name: 'Visual Water' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Sound Water' })).toBeVisible();
   await expect(page.getByRole('switch', { name: 'Linked' })).toBeChecked();
@@ -203,9 +212,11 @@ test('play, compare, draw by chance, save and reopen a composition', async ({ pa
   await page.keyboard.press('Space');
   await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
   const paused = await position(page);
-  await page.getByRole('button', { name: 'Visual Water' }).click();
-  await page.getByRole('option', { name: /^Signature/ }).click();
-  await expect(page.getByRole('button', { name: 'Visual Signature' })).toBeVisible();
+  await page
+    .getByRole('radiogroup', { name: 'Visual mapping' })
+    .getByRole('radio', { name: 'Signature', exact: true })
+    .click();
+  await expect(page.getByRole('button', { name: /^Visual / })).toHaveCount(0);
   await expect(page.getByRole('radiogroup', { name: 'Show readout' })).toBeVisible();
   expect(await position(page)).toBeCloseTo(paused, 2);
   // Seek (paused) to the eye opening: its strokes show.
@@ -214,8 +225,10 @@ test('play, compare, draw by chance, save and reopen a composition', async ({ pa
   await expect.poll(() => position(page)).toBeGreaterThan(1.1);
   expect(await position(page)).toBeLessThan(1.4);
   await expect.poll(async () => (await brightness(page, wake)).lit).toBeGreaterThan(0.001);
-  await page.getByRole('button', { name: 'Visual Signature' }).click();
-  await page.getByRole('option', { name: /^Water/ }).click();
+  await page
+    .getByRole('radiogroup', { name: 'Visual mapping' })
+    .getByRole('radio', { name: 'Movement', exact: true })
+    .click();
   await expect(page.getByRole('button', { name: 'Visual Water' })).toBeVisible();
 
   // Another sound material while playing, then back: playback carries on.

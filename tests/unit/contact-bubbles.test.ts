@@ -1,7 +1,8 @@
 import { expect, it } from 'vitest';
 import { ContactBubbleSim } from '../../src/materials/visual/bubbles/ContactBubbleSim';
 import { bubbleParams } from '../../src/materials/visual/bubbles/mapping';
-const p = bubbleParams({}, 'draft', 'warping').sim;
+const base = bubbleParams({}, 'draft', 'displacement').sim;
+const p = { ...base, sourceFromTop: false };
 const still = { cols: 16, rows: 9, field: new Float32Array(288) };
 it('pops only contacted particles while untouched bubbles continue falling', () => {
   const sim = new ContactBubbleSim(1500, 640, 360);
@@ -12,7 +13,7 @@ it('pops only contacted particles while untouched bubbles continue falling', () 
   sim.py[1] = 0.2;
   const input = {
     ...still,
-    field: Float32Array.from({ length: 288 }, (_, i) => (i % 2 === 0 && i < 144 ? 0.3 : 0)),
+    field: Float32Array.from({ length: 288 }, (_, i) => (i % 2 === 0 && i < 144 ? 0.8 : 0)),
   };
   const y = sim.py[1];
   sim.step(input, p, 1 / 60);
@@ -45,4 +46,44 @@ it('staggers a batch of popped bubbles over the fall cycle and redistributes ent
   );
   expect(a.birthDelay).toEqual(b.birthDelay);
   expect(a.px).toEqual(b.px);
+});
+
+it('gentle motion pushes existing bubbles without popping them', () => {
+  const sim = new ContactBubbleSim(1500, 640, 360);
+  sim.reset(7);
+  sim.step(still, p, 1 / 60);
+  const before = sim.dx.slice();
+  const input = {
+    ...still,
+    field: Float32Array.from({ length: 288 }, (_, i) => (i % 2 === 0 ? 0.15 : 0)),
+  };
+  for (let i = 0; i < 30; i++) sim.step(input, p, 1 / 60);
+  expect(sim.dx).not.toEqual(before);
+  expect(sim.wear.some((wear) => wear >= 1)).toBe(false);
+  expect(sim.mist.count).toBe(0);
+});
+
+it('a sharp sweep pops a few with mist, rather than erasing the field', () => {
+  const sim = new ContactBubbleSim(1500, 640, 360);
+  sim.reset(7);
+  const params = { ...p, fallSpeed: 0, walk: 0 };
+  sim.step(still, params, 1 / 60);
+  for (let i = 0; i < sim.count; i++) {
+    sim.px[i] = 0.8;
+    sim.py[i] = 0.5;
+  }
+  const input = {
+    ...still,
+    field: Float32Array.from({ length: 288 }, (_, i) => (i % 2 === 0 ? 0.8 : 0)),
+  };
+  sim.step(input, params, 1 / 60);
+  const popped = () => Array.from(sim.wear.subarray(0, sim.count)).filter((v) => v >= 1).length;
+  expect(popped()).toBe(3);
+  expect(sim.mist.count).toBe(18);
+  for (let i = 0; i < 20; i++) sim.step(input, params, 1 / 60);
+  expect(popped()).toBeLessThanOrEqual(3);
+  expect(sim.mist.count).toBe(18); // No further bursts during sustained movement.
+  expect(sim.count).toBeGreaterThan(100);
+  sim.reset(7);
+  expect(sim.mist.count).toBe(0);
 });

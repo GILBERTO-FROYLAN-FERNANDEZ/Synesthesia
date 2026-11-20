@@ -282,7 +282,7 @@ const EMPTY_TRANSPORT: RuntimeTransport = {
 
 function defaultChanceOptions(): ChanceOptions {
   return {
-    visualPool: [...chanceVisualMetas(), ...chanceVisualMetas('warping')].map((m) => m.id),
+    visualPool: chanceVisualMetas().map((m) => m.id),
     soundPool: chanceSoundMetas().map((m) => m.id),
     openCount: 2,
     chooseValues: false,

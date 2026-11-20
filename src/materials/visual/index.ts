@@ -4,7 +4,7 @@ import { filamentsEntry } from './filaments';
 import { honeyEntry } from './honey';
 import { signatureViewEntry } from './signature-view';
 import { smokeEntry } from './smoke';
-import { WARP_MATERIALS } from './warping';
+import { grassEntry } from './grass';
 import { waterEntry } from './water';
 
 /**
@@ -18,5 +18,5 @@ export const VISUAL_MATERIALS: VisualMaterialEntry[] = [
   bubblesEntry,
   filamentsEntry,
   signatureViewEntry,
-  ...WARP_MATERIALS,
+  grassEntry,
 ];

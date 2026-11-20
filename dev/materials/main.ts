@@ -40,7 +40,9 @@ import { solverHookProbe, type SolverProbeResult } from './solverProbe';
 
 export interface RenderOpts {
   repeatMotion?: boolean;
-  mapping?: 'wake' | 'displacement' | 'lines' | 'ripples' | 'warping';
+  /** Diagnostic uniform capture-space vector, for testing directional scenes. */
+  fieldVector?: [number, number];
+  mapping?: 'wake' | 'displacement' | 'lines' | 'sampled-displacement' | 'ripples';
   materialId: string;
   kind: SyntheticKind;
   steps: number;
@@ -105,11 +107,26 @@ function creatorFor(opts: RenderOpts): () => VisualMaterial {
   return entry.create;
 }
 
-function samplerFor(kind: SyntheticKind, repeat = false): SignatureSampler {
+function samplerFor(
+  kind: SyntheticKind,
+  repeat = false,
+  vector?: [number, number],
+): SignatureSampler {
   const sampler = createSyntheticSampler(kind);
-  if (!repeat) return sampler;
+  if (!repeat && !vector) return sampler;
   const sample = sampler.sample.bind(sampler);
-  return { ...sampler, sample: (t) => sample(t % sampler.signatureDuration) };
+  return {
+    ...sampler,
+    sample: (t) => {
+      const frame = sample(repeat ? t % sampler.signatureDuration : t);
+      if (vector)
+        for (let i = 0; i < frame.field.length; i += 2) {
+          frame.field[i] = vector[0];
+          frame.field[i + 1] = vector[1];
+        }
+      return frame;
+    },
+  };
 }
 
 async function render(
@@ -119,7 +136,7 @@ async function render(
   return renderOffscreen({
     create: creatorFor(opts),
     mapping: opts.mapping,
-    sampler: samplerFor(opts.kind, opts.repeatMotion),
+    sampler: samplerFor(opts.kind, opts.repeatMotion, opts.fieldVector),
     steps: Math.max(0, Math.floor(opts.steps)),
     props: opts.props,
     finalProps: opts.finalProps,

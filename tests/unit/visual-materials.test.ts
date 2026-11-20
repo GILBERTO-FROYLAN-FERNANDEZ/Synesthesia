@@ -23,12 +23,13 @@ import {
 import { WATER_PALETTE_BYTES } from '../../src/materials/visual/water/palettes';
 
 describe('visual material registry', () => {
-  it('registers Water (the default) and the Signature view', () => {
-    expect(getVisualMaterial(DEFAULT_VISUAL_ID)?.meta.name).toBe('Water');
+  it('defaults to Signature while keeping it out of the medium menu', () => {
+    expect(getVisualMaterial(DEFAULT_VISUAL_ID)?.meta.name).toBe('Signature');
     expect(getVisualMaterial(SIGNATURE_VIEW_ID)?.meta.name).toBe('Signature');
     const ids = listVisualMaterials().map((m) => m.meta.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).not.toContain('filaments');
+    expect(ids).not.toContain('signature');
     expect(getVisualMaterial('filaments')?.meta.name).toBe('Filaments');
   });
 
@@ -104,6 +105,7 @@ describe('visual material registry', () => {
       'honey',
       'smoke',
       'bubbles',
+      'grass',
     ]);
     for (const { meta } of materials) {
       const hue = meta.properties[meta.properties.length - 1];

@@ -27,7 +27,7 @@ import {
 import { HueTurn } from '../shared/hue';
 import { PALETTE_SIZE, WAKE_PALETTE_BYTES } from '../shared/wakePalette';
 import { ContactBubbleSim } from './ContactBubbleSim';
-import { BubbleSim } from './BubbleSim';
+import type { BubbleSim } from './BubbleSim';
 import { PathBubbleSim } from './PathBubbleSim';
 import {
   BUBBLE_TIER_CAPS,
@@ -40,10 +40,10 @@ import { BUBBLE_FRAGMENT, BUBBLE_VERTEX } from './shaders';
 
 export const BUBBLES_META = {
   id: 'bubbles',
-  version: 1,
+  version: 2,
   name: 'Bubbles',
   description:
-    'Clear bubbles sinking through dark water. The movement shoves them aside; they glow, wobble, and carry its shape as they fall.',
+    'Clear bubbles sinking through dark water. The movement shoves them aside; they wobble and carry its shape as they fall. Sharp gestures pop a few into drifting mist.',
   properties: BUBBLES_PROPERTIES,
 };
 
@@ -102,7 +102,7 @@ export class BubblesMaterial implements VisualMaterial {
       );
       const capacity = BUBBLE_TIER_CAPS[ctx.quality];
       this.instances = new Float32Array(
-        (capacity + (ctx.mapping === 'warping' ? 2048 : 0)) * FLOATS_PER_BUBBLE,
+        (capacity + (ctx.mapping === 'displacement' ? 2048 : 0)) * FLOATS_PER_BUBBLE,
       );
       this.vao = res.vertexArray();
       this.buffer = res.buffer();
@@ -122,11 +122,9 @@ export class BubblesMaterial implements VisualMaterial {
       gl.bindVertexArray(null);
       gl.bindBuffer(gl.ARRAY_BUFFER, null);
       this.sim =
-        ctx.mapping === 'warping'
+        ctx.mapping === 'displacement'
           ? new ContactBubbleSim(capacity, ctx.width, ctx.height)
-          : ctx.mapping === 'lines'
-            ? new PathBubbleSim(capacity, ctx.width, ctx.height)
-            : new BubbleSim(capacity, ctx.width, ctx.height);
+          : new PathBubbleSim(capacity, ctx.width, ctx.height, ctx.mapping !== 'lines');
       this.setProperties(baselineValues(BUBBLES_PROPERTIES));
       this.reset(ctx.seed);
       return Promise.resolve();
@@ -141,7 +139,11 @@ export class BubblesMaterial implements VisualMaterial {
   }
 
   step(frame: SignatureFrame, props: PropertyValues, dt: number): void {
-    const params = bubbleParams(props, this.quality, this.mapping);
+    const params = bubbleParams(
+      props,
+      this.quality,
+      this.mapping === 'wake' ? 'lines' : this.mapping,
+    );
     this.simParams = params.sim;
     this.display = params.display;
     this.sim?.step(frame, this.simParams, dt);
@@ -149,7 +151,11 @@ export class BubblesMaterial implements VisualMaterial {
 
   /** Apply display-only properties (brightness, hue, size) without advancing time. */
   setProperties(props: PropertyValues): void {
-    const params = bubbleParams(props, this.quality, this.mapping);
+    const params = bubbleParams(
+      props,
+      this.quality,
+      this.mapping === 'wake' ? 'lines' : this.mapping,
+    );
     this.display = params.display;
     // Also what a not-yet-stepped simulation shows at t = 0.
     if (!this.sim || this.sim.steps === 0) this.simParams = params.sim;

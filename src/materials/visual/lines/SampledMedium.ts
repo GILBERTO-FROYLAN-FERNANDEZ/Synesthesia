@@ -21,7 +21,10 @@ export class SampledMedium implements VisualMaterial {
   private readonly field = new PathField();
   private readonly medium: VisualMaterial;
 
-  constructor(entry: VisualMaterialEntry) {
+  constructor(
+    entry: VisualMaterialEntry,
+    private readonly existing = false,
+  ) {
     this.id = entry.meta.id;
     this.name = entry.meta.name;
     this.version = entry.meta.version;
@@ -32,7 +35,7 @@ export class SampledMedium implements VisualMaterial {
   async init(ctx: VisualContext): Promise<void> {
     this.source.setCanvas(ctx.width, ctx.height);
     this.field.resize(this.source.worldWidth, this.source.worldHeight);
-    await this.medium.init(ctx);
+    await this.medium.init(this.existing ? { ...ctx, mapping: 'displacement' } : ctx);
     this.reset(ctx.seed);
   }
   reset(seed: number): void {
@@ -57,7 +60,13 @@ export class SampledMedium implements VisualMaterial {
       },
       dt,
     );
-    const sparse = this.field.build(this.source, 0.008 + 0.04 * this.value(props, 'size') ** 2, dt);
+    // Grass roots are farther apart than fluid cells. A path should sweep a few
+    // neighboring blades and last long enough to drive their damped springs.
+    const grass = this.id === 'grass';
+    const width = grass
+      ? 1.25 * (0.035 + 0.035 * (1 - this.value(props, 'density')))
+      : 0.008 + 0.04 * this.value(props, 'size') ** 2;
+    const sparse = this.field.build(this.source, width, dt, grass ? 0.16 : 0);
     // The sparse field already lies in canvas coordinates; don't project it a second time.
     this.medium.step(
       { ...frame, field: sparse.field, cols: sparse.cols, rows: sparse.rows },

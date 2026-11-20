@@ -1,3 +1,4 @@
+import { mappingForVisual } from '../../materials/visual/movement';
 import { valuesAfterMaterialSwitch } from '../../engine/propertyModel';
 import { useEffect, useRef, useState } from 'react';
 import { navigate } from '../../app/router';
@@ -192,7 +193,12 @@ export function LiveStudioScreen() {
           <section className={styles.section} aria-label="Visual mapping">
             <h2 className={styles.sectionTitle}>Mapping</h2>
             <VisualMappingControl
-              value={composition.visual.mapping}
+              value={
+                composition.visual.materialId === 'signature'
+                  ? 'signature'
+                  : composition.visual.mapping
+              }
+              existingOnly={composition.visual.materialId === 'grass'}
               onChange={(mapping) =>
                 setComposition((current) => ({
                   ...current,
@@ -217,8 +223,25 @@ export function LiveStudioScreen() {
                 }))
               }
             />
+            {composition.visual.materialId === 'signature' && (
+              <PropertyPanel
+                label="Signature properties"
+                defs={getVisualMaterial(SIGNATURE_VIEW_ID)!.meta.properties}
+                values={composition.visual.properties}
+                onChange={(id, value) =>
+                  setComposition((current) => ({
+                    ...current,
+                    visual: {
+                      ...current.visual,
+                      properties: { ...current.visual.properties, [id]: value },
+                    },
+                  }))
+                }
+              />
+            )}
           </section>
           {(['visual', 'sound'] as const).map((kind) => {
+            if (kind === 'visual' && composition.visual.materialId === 'signature') return null;
             const entries =
               kind === 'visual'
                 ? listVisualMaterials(composition.visual.mapping)
@@ -253,9 +276,13 @@ export function LiveStudioScreen() {
                         ...current[kind],
                         materialId: next.id,
                         materialVersion: next.version,
+                        ...(kind === 'visual'
+                          ? { mapping: mappingForVisual(next.id, current.visual.mapping) }
+                          : {}),
                         properties: {
                           ...(kind === 'visual' &&
                           (current.visual.mapping === 'lines' ||
+                            current.visual.mapping === 'sampled-displacement' ||
                             current.visual.mapping === 'ripples')
                             ? valuesAfterMaterialSwitch(
                                 current.visual.properties,
@@ -264,6 +291,7 @@ export function LiveStudioScreen() {
                             : baselineValues(next.properties)),
                           ...(kind === 'visual' &&
                           (current.visual.mapping === 'lines' ||
+                            current.visual.mapping === 'sampled-displacement' ||
                             current.visual.mapping === 'ripples')
                             ? { size: current.visual.properties.size ?? 0.5 }
                             : {}),

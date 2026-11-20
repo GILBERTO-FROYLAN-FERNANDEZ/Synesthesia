@@ -11,9 +11,15 @@ export class PathBubbleSim extends BubbleSim {
   private readonly source = new LineSim();
   private readonly gestureField = new ProjectedField();
   private readonly spacing = new Map<number, number>();
+  private emissionBudget = 0;
   private random: Rng = createRng(0);
 
-  constructor(capacity: number, width: number, height: number) {
+  constructor(
+    capacity: number,
+    width: number,
+    height: number,
+    private readonly fullMovement = false,
+  ) {
     super(capacity, width, height);
     this.opacity = new Float64Array(capacity);
     this.age = new Float64Array(capacity);
@@ -23,6 +29,7 @@ export class PathBubbleSim extends BubbleSim {
     this.source.reset(seed);
     this.random = createRng(seed);
     this.spacing.clear();
+    this.emissionBudget = 0;
     this.age.fill(0);
     this.opacity.fill(0);
   }
@@ -79,6 +86,22 @@ export class PathBubbleSim extends BubbleSim {
       this.gy[i] = this.vy[i];
       this.opacity[i] = Math.min(1, (1 - this.age[i] / lifetime) * 3);
     }
+    if (this.fullMovement) {
+      // Uniform spatial sampling preserves broad moving shapes instead of tracing paths.
+      // A time budget makes emission independent of render frame rate.
+      this.emissionBudget += (Math.min(this.capacity, p.count) * 3 * dt) / lifetime;
+      const attempts = Math.floor(this.emissionBudget);
+      this.emissionBudget -= attempts;
+      for (let n = 0; n < attempts; n++) {
+        const x = this.random() * this.worldWidth,
+          y = this.random() * this.worldHeight;
+        this.gestureField.sample(x, y);
+        const speed = Math.hypot(this.gestureField.u, this.gestureField.v);
+        if (speed < 0.025 || this.random() > Math.min(1, speed * 4)) continue;
+        this.emit(x, y, this.gestureField.u, this.gestureField.v, p);
+      }
+      return;
+    }
     this.source.step(
       input,
       {
@@ -99,26 +122,26 @@ export class PathBubbleSim extends BubbleSim {
       const length = Math.hypot(dx, dy);
       let distance = this.spacing.get(s.path[k]) ?? this.random() * 0.025;
       while (distance < length) {
-        if (this.count < Math.min(this.capacity, p.count)) {
-          const i = this.count++;
-          const t = distance / Math.max(length, 1e-9);
-          this.px[i] = s.x0[k] + dx * t;
-          this.py[i] = s.y0[k] + dy * t;
-          const speed = Math.hypot(dx, dy) / dt;
-          const scale = Math.min(1, (p.maxPushSpeed ?? 0.7) / Math.max(speed, 1e-9));
-          this.vx[i] = (dx / dt) * scale * 0.25;
-          this.vy[i] = (dy / dt) * scale * 0.25;
-          this.gx[i] = this.vx[i];
-          this.gy[i] = this.vy[i];
-          this.size[i] = 0.55 + 1.3 * this.random() ** 2.3;
-          this.fall[i] = 0;
-          this.age[i] = 0;
-          this.opacity[i] = 1;
-        }
+        const t = distance / Math.max(length, 1e-9);
+        this.emit(s.x0[k] + dx * t, s.y0[k] + dy * t, dx / dt, dy / dt, p);
         distance += 0.018 + this.random() * 0.035;
       }
       this.spacing.set(s.path[k], distance - length);
     }
     while (this.spacing.size > 512) this.spacing.delete(this.spacing.keys().next().value!);
+  }
+  private emit(x: number, y: number, u: number, v: number, p: BubbleSimParams): void {
+    if (this.count >= Math.min(this.capacity, p.count)) return;
+    const i = this.count++;
+    this.px[i] = x;
+    this.py[i] = y;
+    const scale = Math.min(1, (p.maxPushSpeed ?? 0.7) / Math.max(Math.hypot(u, v), 1e-9));
+    this.vx[i] = u * scale * 0.25;
+    this.vy[i] = v * scale * 0.25;
+    this.gx[i] = this.vx[i];
+    this.gy[i] = this.vy[i];
+    this.size[i] = 0.55 + 1.3 * this.random() ** 2.3;
+    this.fall[i] = this.age[i] = 0;
+    this.opacity[i] = 1;
   }
 }

@@ -15,7 +15,7 @@ import { WATER_PROPERTIES } from './properties';
 
 export const WATER_META = {
   id: 'water',
-  version: 1,
+  version: 2,
   name: 'Water',
   description:
     'Colored water seen from below. The movement stirs it, and dye swirls along its wake, then drifts and fades.',
@@ -97,7 +97,10 @@ export class WaterMaterial implements VisualMaterial {
       ...(this.solver?.mapping === 'lines'
         ? {
             dyeSpots: 0,
-            dyeDissipation: params.step.dyeDissipation * 2,
+            // Sparse gestures need an immediate deposit, independent of fluid inertia.
+            dyeFromRawField: true,
+            dyeAmount: params.step.dyeAmount * 4,
+            dyeDissipation: params.step.dyeDissipation * 1.25,
             jitterAngle: 0,
             jitterOffset: 0,
           }
