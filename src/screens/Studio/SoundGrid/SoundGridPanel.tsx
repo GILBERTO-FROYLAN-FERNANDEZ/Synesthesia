@@ -116,14 +116,6 @@ export function SoundGridPanel({ grid, disabled = false }: SoundGridPanelProps) 
         disabled={disabled}
         onChange={(volume) => setSettings({ volume })}
       />
-      <Toggle
-        label="Mirror"
-        checked={settings.mirror}
-        accent="water"
-        disabled={disabled}
-        onChange={(mirror) => setSettings({ mirror })}
-        description="Left and right as in a mirror, matching the camera preview."
-      />
     </section>
   );
 }

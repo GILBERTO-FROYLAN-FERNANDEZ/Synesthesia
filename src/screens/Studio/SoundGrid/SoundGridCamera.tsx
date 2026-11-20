@@ -8,7 +8,7 @@ export interface SoundGridCameraProps {
   source: RefObject<HTMLVideoElement | null>;
   /** Show the camera image under the grid (off: just the grid). Default true. */
   showCamera?: boolean;
-  /** Show the camera as a mirror (match the engine's `mirror` setting). Default true. */
+  /** Show the camera as a mirror, like the screen's preview and the tracker. Default true. */
   mirror?: boolean;
   className?: string;
 }

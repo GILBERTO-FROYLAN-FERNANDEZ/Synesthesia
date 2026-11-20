@@ -74,8 +74,6 @@ export interface SoundGridSettings {
   volume: number;
   /** 0–1: higher lets smaller movements play a zone fully. */
   response: number;
-  /** Flip left and right to match the mirrored camera preview. */
-  mirror: boolean;
 }
 
 export const DEFAULT_SOUND_GRID: SoundGridSettings = {
@@ -86,7 +84,6 @@ export const DEFAULT_SOUND_GRID: SoundGridSettings = {
   root: DEFAULT_ROOT,
   volume: 0.7,
   response: 0.5,
-  mirror: true,
 };
 
 /** What the overlay draws. Arrays are owned by the engine: read them, don't keep them. */
@@ -221,18 +218,23 @@ export class SoundGridEngine {
     if (!this.sounding && audio.ctx.state === 'running') await audio.ctx.suspend();
   }
 
-  /** Feed one frame from `trackLiveVideo` / the body-tracking worker. */
-  update(frame: Pick<SignatureFrame, 'cols' | 'rows' | 'field'>): void {
-    this.motion = measureZones(frame, this.layout, this.settings.mirror, this.motion);
+  /**
+   * Feed one frame from `trackLiveVideo` / the body-tracking worker. The tracker mirrors the
+   * camera before measuring (src/signature/live.ts), so the field already matches the mirrored
+   * preview. Pass `mirror: true` only for a field measured from the un-mirrored image.
+   */
+  update(frame: Pick<SignatureFrame, 'cols' | 'rows' | 'field'>, mirror = false): void {
+    this.motion = measureZones(frame, this.layout, mirror, this.motion);
     this.play();
   }
 
   /**
-   * Feed body landmarks (x, y in 0–1 of the un-mirrored camera image), e.g.
+   * Feed body landmarks (x, y in 0–1 of the un-mirrored camera image, as MediaPipe gives
+   * them; `mirror` flips them to match the preview), e.g.
    * `POSE_PLAYING_POINTS.map((i) => res.landmarks[0][i])` from MediaPipe PoseLandmarker.
    * `aspect` is the camera's width / height.
    */
-  updatePoints(points: readonly TrackedPoint[], aspect: number): void {
+  updatePoints(points: readonly TrackedPoint[], aspect: number, mirror = true): void {
     const dt = Number.isFinite(this.lastUpdate) ? nowSec() - this.lastUpdate : 0;
     this.motion = measurePointZones(
       points,
@@ -240,7 +242,7 @@ export class SoundGridEngine {
       dt,
       aspect,
       this.layout,
-      this.settings.mirror,
+      mirror,
       this.motion,
     );
     this.previousPoints = points.map((p) => ({ ...p }));
