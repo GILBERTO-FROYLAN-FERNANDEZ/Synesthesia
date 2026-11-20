@@ -49,7 +49,6 @@ function Harness() {
   const noVideo = useRef<HTMLVideoElement>(null);
   const pad = useRef<HTMLDivElement>(null);
   const pointer = useRef({ x: 0.5, y: 0.5, u: 0, v: 0, t: 0 });
-  const [mirror] = [grid.settings.mirror];
   const [speed, setSpeed] = useState(0);
 
   useEffect(() => setShown(true), [setShown]);
@@ -75,8 +74,8 @@ function Harness() {
     if (!box) return;
     const sx = (e.clientX - box.left) / box.width;
     const sy = (e.clientY - box.top) / box.height;
-    // The pad shows the grid mirrored, like the camera: screen x is camera 1 − x.
-    const x = mirror ? 1 - sx : sx;
+    // The tracker mirrors the camera, so the field is in screen coordinates already.
+    const x = sx;
     const p = pointer.current;
     const t = e.timeStamp / 1000;
     const dt = Math.max(1 / 240, t - p.t);
@@ -111,7 +110,6 @@ function Harness() {
             engine={engine}
             source={noVideo}
             showCamera={false}
-            mirror={mirror}
             className="harness-pad"
           />
         </div>

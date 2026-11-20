@@ -16,9 +16,9 @@ test.describe('sound grid', () => {
     const zones = page.locator('[data-zone]');
     await expect(zones).toHaveCount(9);
 
-    // A blob moving in the camera's top-left shows in the screen's top-right (mirrored).
+    // The tracker mirrors the camera, so a blob at the field's top-right lights the top-right zone.
     for (let i = 0; i < 8; i++) {
-      await page.evaluate(() => window.spSoundGrid.frame(0.15, 0.15, 0.8, 0));
+      await page.evaluate(() => window.spSoundGrid.frame(0.85, 0.15, 0.8, 0));
       await page.waitForTimeout(30);
     }
     await expect(page.locator('[data-zone="2"]')).toHaveAttribute('data-active', '');

@@ -158,9 +158,7 @@ export function LiveStudioScreen() {
             className={styles.liveCamera}
             aria-label="Webcam preview"
           />
-          {grid.shown ? (
-            <SoundGridCamera engine={gridEngine} source={videoRef} mirror={grid.settings.mirror} />
-          ) : null}
+          {grid.shown ? <SoundGridCamera engine={gridEngine} source={videoRef} /> : null}
           {cameraError || picture ? (
             <p className={styles.pictureProblem} role="alert">
               {cameraError ?? 'Could not show this visual. Try choosing another material.'}

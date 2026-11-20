@@ -230,23 +230,45 @@ describe('sound grid engine (without audio)', () => {
   let engine: SoundGridEngine | null = null;
   afterEach(() => engine?.dispose());
 
-  it('lights and strikes the zone the movement is in, mirrored', async () => {
-    engine = new SoundGridEngine({ mirror: true });
+  it('lights and strikes the zone the movement is in (field already mirrored)', async () => {
+    engine = new SoundGridEngine();
     let snap: SoundGridSnapshot | null = null;
     engine.subscribe((s) => (snap = s));
-    // Camera-left top cell → screen-right top zone (2) when mirrored.
+    // The live tracker mirrors the camera, so field top-left is screen top-left: zone 0.
     for (let i = 0; i < 6; i++) {
       engine.update(fieldWith(9, 9, [1, 1], 0.6));
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
     expect(snap).not.toBeNull();
     const s = snap as unknown as SoundGridSnapshot;
-    expect(s.level[2]).toBeGreaterThan(0.3);
-    expect(s.active[2]).toBe(1);
-    expect(s.strikes[2]).toBe(1);
-    expect(s.level[0]).toBe(0);
+    expect(s.level[0]).toBeGreaterThan(0.3);
+    expect(s.active[0]).toBe(1);
+    expect(s.strikes[0]).toBe(1);
+    expect(s.level[2]).toBe(0);
     expect(s.notes).toHaveLength(9);
     expect(s.sounding).toBe(false);
+  });
+
+  it('flips an un-mirrored field when asked', () => {
+    engine = new SoundGridEngine();
+    let snap: SoundGridSnapshot | null = null;
+    engine.subscribe((s) => (snap = s));
+    engine.update(fieldWith(9, 9, [1, 1], 0.6), true);
+    const s = snap as unknown as SoundGridSnapshot;
+    expect(s.level[2]).toBeGreaterThan(0);
+    expect(s.level[0]).toBe(0);
+  });
+
+  it('mirrors body landmarks to match the preview', () => {
+    engine = new SoundGridEngine();
+    let snap: SoundGridSnapshot | null = null;
+    engine.subscribe((s) => (snap = s));
+    // Camera-left wrist moving: shows on screen-right (zone 5, middle row).
+    engine.updatePoints([{ x: 0.1, y: 0.5 }], 4 / 3);
+    engine.updatePoints([{ x: 0.2, y: 0.5 }], 4 / 3);
+    const s = snap as unknown as SoundGridSnapshot;
+    expect(s.level[5]).toBeGreaterThan(0);
+    expect(s.level[3]).toBe(0);
   });
 
   it('rebuilds its zones and notes when the grid changes', () => {
@@ -262,7 +284,7 @@ describe('sound grid engine (without audio)', () => {
   });
 
   it('stays usable after dispose (StrictMode remounts)', () => {
-    engine = new SoundGridEngine({ mirror: false });
+    engine = new SoundGridEngine();
     engine.dispose();
     let snap: SoundGridSnapshot | null = null;
     engine.subscribe((s) => (snap = s));

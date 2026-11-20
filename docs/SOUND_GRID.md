@@ -11,8 +11,7 @@ own note and its own place in the stereo field. Moving in a zone plays its note:
 
 Pitch rises from the bottom-left zone to the top-right one, walking up a scale (pentatonic,
 major, minor or whole tone) from a chosen lowest note. Low notes sit near the floor and high
-notes above the head. Left and right are mirrored by default to match the mirrored camera
-preview.
+notes above the head. Left and right match the mirrored camera preview.
 
 Where to find it: **Prepare → Start Live Motion**, then the **Sound grid** section at the
 bottom of the panel. With no camera, try `dev/sound-grid/`, which plays the grid with the
@@ -55,7 +54,7 @@ const grid = useSoundGrid();
 // in the tracker's onMotion callback:
 grid.engine.update(frame);
 // on the stage, next to the camera <video ref={videoRef}>:
-{grid.shown ? <SoundGridCamera engine={grid.engine} source={videoRef} mirror={grid.settings.mirror} /> : null}
+{grid.shown ? <SoundGridCamera engine={grid.engine} source={videoRef} /> : null}
 // in the panel:
 <SoundGridPanel grid={grid} />
 ```
@@ -107,8 +106,13 @@ diagonals per second), so everything downstream is shared.
   graphics; whether the 0.15 open threshold is right for the built-in FaceTime camera's
   noise.
 
-## Known gap, not part of this change
+## Mirroring
 
-The live visual is not mirrored, but the camera preview is (`transform: scaleX(-1)`). A
-movement on the left of the preview shows on the right of the visual. The grid follows the
-preview.
+Since 44487ac ("Signature Mirrored, now matches webcam"), `trackLiveVideo` flips the camera
+before measuring, so the field arrives already in the mirrored preview's coordinates and the
+grid uses it as is. Two cases still need a flip, and both have one built in:
+
+- A tracker that measures the un-mirrored image: call `engine.update(frame, true)`. Check this
+  for the body-tracking worker on `body-tracking-live`, which runs its own pipeline.
+- Body landmarks: MediaPipe gives un-mirrored coordinates, so `updatePoints` flips them by
+  default.
