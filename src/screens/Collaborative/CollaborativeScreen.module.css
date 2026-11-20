@@ -127,6 +127,8 @@
   transform: scaleX(-1);
 }
 
+.cameraPreview .cameraBadge { z-index: 2; }
+
 .cameraEmpty {
   position: absolute;
   inset: 0;

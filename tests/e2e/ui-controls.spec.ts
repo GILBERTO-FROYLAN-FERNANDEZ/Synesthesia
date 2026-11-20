@@ -93,7 +93,7 @@ test.describe('transport', () => {
 });
 
 test.describe('material picker and property panel', () => {
-  test('choose a material by keyboard; More reveals extra properties', async ({ page }) => {
+  test('choose a material by keyboard; Show more reveals extra properties', async ({ page }) => {
     await page.goto('./dev/ui/');
     await page.getByRole('button', { name: /Visual\s*Water/ }).click();
     const list = page.getByRole('listbox', { name: 'Visual material' });
@@ -106,8 +106,10 @@ test.describe('material picker and property panel', () => {
 
     const panel = page.getByRole('group', { name: 'Water properties' });
     await expect(panel.getByRole('slider', { name: 'Range' })).toHaveCount(0);
-    await panel.getByRole('button', { name: 'More (1)' }).click();
+    await panel.getByRole('button', { name: 'Show more' }).click();
     await expect(panel.getByRole('slider', { name: 'Range' })).toBeVisible();
     await expect(panel.getByRole('radiogroup', { name: 'Palette' })).toBeVisible();
+    await panel.getByRole('button', { name: 'Show less' }).click();
+    await expect(panel.getByRole('slider', { name: 'Range' })).toHaveCount(0);
   });
 });

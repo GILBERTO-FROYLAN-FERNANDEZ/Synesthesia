@@ -296,6 +296,24 @@
   font-size: var(--font-size-sm);
 }
 
+.trackingSetup {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid color-mix(in srgb, var(--color-silt) 45%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+
+.trackingSetup > div:first-child {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.trackingSetup strong { color: var(--color-pearl); }
+.trackingSetup small { color: var(--color-mist); }
+
 .startPanel {
   padding: var(--space-5);
   display: flex;
@@ -347,7 +365,8 @@
   }
 
   .panelHeading,
-  .startPanel {
+  .startPanel,
+  .trackingSetup {
     align-items: flex-start;
     flex-direction: column;
   }

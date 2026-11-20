@@ -6,8 +6,8 @@ import {
   DEFAULT_SOUND_ID,
   DEFAULT_VISUAL_ID,
   getSoundMaterial,
+  listCreativeVisualMaterials,
   listSoundMaterials,
-  listVisualMaterials,
 } from '../../materials/registry';
 import { createSyntheticSampler } from '../../signature/synthetic';
 import { Button } from '../../ui/Button';
@@ -63,6 +63,7 @@ export function CameraSetupScreen() {
   const [soundId, setSoundId] = useState(DEFAULT_SOUND_ID);
   const [visualId, setVisualId] = useState(DEFAULT_VISUAL_ID);
   const [muted, setMuted] = useState(false);
+  const [bodyTrackingEnabled, setBodyTrackingEnabled] = useState(true);
   const [volume, setVolume] = useState(70);
   const [soundState, setSoundState] = useState<SoundState>('idle');
   const [soundError, setSoundError] = useState<string | null>(null);
@@ -158,7 +159,7 @@ export function CameraSetupScreen() {
 
   const { status } = camera;
   const soundMaterials = listSoundMaterials();
-  const visualMaterials = listVisualMaterials();
+  const visualMaterials = listCreativeVisualMaterials();
 
   const startPerformance = async () => {
     const stream = camera.detach();
@@ -167,6 +168,9 @@ export function CameraSetupScreen() {
     beginPerformance(stream, camera.cameraName, {
       visualId,
       soundId,
+      visualProperties: baselineValues(visualMaterials.find(({ meta }) => meta.id === visualId)?.meta.properties ?? []),
+      soundProperties: baselineValues(getSoundMaterial(soundId)?.meta.properties ?? []),
+      bodyTrackingEnabled,
       intensity: 1,
       volume: volume / 100,
       muted,
@@ -269,8 +273,7 @@ export function CameraSetupScreen() {
           </span>
         </div>
         <p className={styles.sectionIntro}>
-          Choose a sound material and set a comfortable listening level. Advanced mapping stays in
-          the Studio.
+          Choose materials and a comfortable listening level. Fine-tune their properties during Perform.
         </p>
 
         <div className={styles.soundGrid}>
@@ -354,6 +357,18 @@ export function CameraSetupScreen() {
               : `Test sound plays a short ${getSoundMaterial(soundId)?.meta.name ?? 'material'} response through your current audio output.`}
           </p>
         )}
+        <div className={styles.trackingSetup}>
+          <div>
+            <strong>Body tracking</strong>
+            <small>Focus motion tracking on the performer. When off, movement anywhere in the camera image can drive the response.</small>
+          </div>
+          <Toggle
+            label="Use body tracking"
+            checked={bodyTrackingEnabled}
+            accent="water"
+            onChange={setBodyTrackingEnabled}
+          />
+        </div>
       </section>
 
       <footer className={styles.startPanel}>

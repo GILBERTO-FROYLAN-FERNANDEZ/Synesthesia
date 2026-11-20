@@ -88,6 +88,9 @@ export function SessionReviewScreen() {
       });
       const composition: Composition = {
         ...base,
+        linked: false,
+        visual: { ...base.visual, properties: { ...session.settings.visualProperties } },
+        sound: { ...base.sound, properties: { ...session.settings.soundProperties } },
         thumbnail: session.thumbnail,
         timeline: { ...base.timeline, signatureStrength: session.settings.intensity },
         mute: { ...base.mute, sound: session.settings.muted },
@@ -103,6 +106,7 @@ export function SessionReviewScreen() {
             volume: session.settings.volume,
             muted: session.settings.muted,
             sensitivity: session.settings.sensitivity,
+            bodyTrackingEnabled: session.settings.bodyTrackingEnabled,
           },
           timestampedSettingChanges: session.settingChanges,
           duration: session.duration,

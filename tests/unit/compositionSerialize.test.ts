@@ -127,7 +127,7 @@ describe('composition files', () => {
       duration: 12.5,
       recordedAt: '2026-10-20T08:58:00.000Z',
       recordingStatus: 'generated-only' as const,
-      mappingSettings: { intensity: 1.2, volume: 0.7, muted: false, sensitivity: 1 },
+      mappingSettings: { intensity: 1.2, volume: 0.7, muted: false, sensitivity: 1, bodyTrackingEnabled: true },
       timestampedSettingChanges: [
         {
           atSec: 2,
@@ -137,6 +137,9 @@ describe('composition files', () => {
           volume: 0.7,
           muted: false,
           sensitivity: 1,
+          visualProperties: { brightness: 0.65 },
+          soundProperties: { viscosity: 0.7 },
+          bodyTrackingEnabled: false,
         },
       ],
     };

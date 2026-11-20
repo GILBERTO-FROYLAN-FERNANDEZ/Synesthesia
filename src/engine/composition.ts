@@ -43,6 +43,9 @@ export interface TimestampedSettingChange {
   volume: number;
   muted: boolean;
   sensitivity: number;
+  visualProperties?: PropertyValues;
+  soundProperties?: PropertyValues;
+  bodyTrackingEnabled?: boolean;
 }
 
 export interface PerformanceMetadata {
@@ -57,6 +60,7 @@ export interface PerformanceMetadata {
     volume: number;
     muted: boolean;
     sensitivity: number;
+    bodyTrackingEnabled?: boolean;
   };
   timestampedSettingChanges?: TimestampedSettingChange[];
   duration?: number;

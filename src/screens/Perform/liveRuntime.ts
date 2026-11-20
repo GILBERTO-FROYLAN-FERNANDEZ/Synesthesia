@@ -4,7 +4,7 @@ import { baselineValues } from '../../materials/properties';
 import { getSoundMaterial, getVisualMaterial } from '../../materials/registry';
 import { FIXED_DT, type PropertyValues, type VisualMaterial } from '../../materials/types';
 import { getVisualContext, releaseVisualContext } from '../../materials/visual/shared/gl';
-import type { SignatureFrame, SignatureSampler } from '../../signature/types';
+import { VELOCITY_FEATURES, type SignatureFrame, type SignatureSampler } from '../../signature/types';
 import type { RecordedPart } from './liveSession';
 import { LiveMotionActivity } from './liveActivity';
 import { LiveMotionTracker, type LiveTrackingState } from './liveMotion';
@@ -43,6 +43,21 @@ function supportedMimeType(): string | null {
     'video/mp4;codecs=avc1,mp4a.40.2',
     'video/mp4',
   ].find((type) => MediaRecorder.isTypeSupported(type)) ?? '';
+}
+
+function scaledMotionFrame(source: SignatureFrame, strength: number): SignatureFrame {
+  const scale = (values: SignatureFrame['features']) => Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [
+      key,
+      value * (VELOCITY_FEATURES.has(key as keyof SignatureFrame['features']) ? strength : 1),
+    ]),
+  ) as SignatureFrame['features'];
+  return {
+    ...source,
+    field: Float32Array.from(source.field, (value) => value * strength),
+    features: scale(source.features),
+    normalized: scale(source.normalized),
+  };
 }
 
 interface RecorderState {
@@ -129,7 +144,7 @@ export class LivePerformanceRuntime {
     this.tracker = new LiveMotionTracker(video);
     this.sampler = new LiveSampler(this.tracker.latest);
     this.tracker.onFrame = (frame) => {
-      this.sampler.frame = frame;
+      this.sampler.frame = scaledMotionFrame(frame, this.intensity);
       this.audio.timelineChanged();
       this.updateActivity(this.activity.update(frame.features.energy, performance.now(), this.sensitivity));
       this.onMotion?.(frame);
@@ -152,6 +167,9 @@ export class LivePerformanceRuntime {
   async start(options: {
     visualId: string;
     soundId: string;
+    visualProperties?: PropertyValues;
+    soundProperties?: PropertyValues;
+    bodyTrackingEnabled?: boolean;
     intensity: number;
     volume: number;
     muted: boolean;
@@ -160,18 +178,18 @@ export class LivePerformanceRuntime {
     this.intensity = options.intensity;
     this.setSensitivity(options.sensitivity);
     this.setVolume(options.volume);
-    const visual = await this.setVisual(options.visualId);
+    const visual = await this.setVisual(options.visualId, options.visualProperties);
     if (this.stopped) return visual;
-    await this.setSound(options.soundId);
+    await this.setSound(options.soundId, options.soundProperties);
     if (this.stopped) return visual;
     this.setMuted(options.muted);
-    this.tracker.start();
+    this.tracker.start(options.bodyTrackingEnabled ?? true);
     await this.audio.play(0);
     this.raf = requestAnimationFrame(this.draw);
     return visual;
   }
 
-  async setVisual(id: string): Promise<LiveVisualSelection> {
+  async setVisual(id: string, props?: PropertyValues): Promise<LiveVisualSelection> {
     const requested = getVisualMaterial(id);
     if (!requested) throw new Error('That visual material is unavailable.');
     // Fluid materials need floating-point render targets. Bubbles draws with ordinary
@@ -202,7 +220,10 @@ export class LivePerformanceRuntime {
         material.draw();
         const previous = this.visual;
         this.visual = material;
-        this.visualProps = baselineValues(entry.meta.properties);
+        this.visualProps = candidate === id && props
+          ? { ...baselineValues(entry.meta.properties), ...props }
+          : baselineValues(entry.meta.properties);
+        material.setProperties?.(this.visualProps);
         previous?.dispose();
         return candidate === id ? { id } : { id: candidate, fallbackFrom: id };
       } catch (caught) {
@@ -218,19 +239,21 @@ export class LivePerformanceRuntime {
     throw failure instanceof Error ? failure : new Error('No visual can render on this graphics card.');
   }
 
-  async setSound(id: string): Promise<void> {
+  async setSound(id: string, props?: PropertyValues): Promise<void> {
     const entry = getSoundMaterial(id);
     if (!entry) throw new Error('That sound material is unavailable.');
     await this.audio.load({
       entry,
       sampler: this.sampler,
-      props: baselineValues(entry.meta.properties),
+      props: props ? { ...baselineValues(entry.meta.properties), ...props } : baselineValues(entry.meta.properties),
       seed: soundSeed(42),
     });
   }
 
   setIntensity(value: number): void {
     this.intensity = Math.max(0, Math.min(3, value));
+    this.sampler.frame = scaledMotionFrame(this.tracker.latest, this.intensity);
+    this.audio.timelineChanged();
   }
   setVolume(value: number): void {
     this.output.gain.setTargetAtTime(
@@ -245,6 +268,19 @@ export class LivePerformanceRuntime {
   setSensitivity(value: number): void {
     this.sensitivity = value;
     this.tracker.setSensitivity(value);
+  }
+
+  setBodyTrackingEnabled(enabled: boolean): void {
+    this.tracker.setBodyTrackingEnabled(enabled);
+  }
+
+  setVisualProperties(props: PropertyValues): void {
+    this.visualProps = { ...props };
+    this.visual?.setProperties?.(this.visualProps);
+  }
+
+  setSoundProperties(props: PropertyValues): void {
+    this.audio.setProps({ ...props });
   }
 
   private updateActivity(active: boolean): void {
@@ -324,22 +360,7 @@ export class LivePerformanceRuntime {
     const dt = this.lastFrame ? Math.min(0.05, (now - this.lastFrame) / 1000) : FIXED_DT;
     this.lastFrame = now;
     const source = this.tracker.latest;
-    const frame: SignatureFrame = {
-      ...source,
-      field: Float32Array.from(source.field, (value) => value * this.intensity),
-      features: Object.fromEntries(
-        Object.entries(source.features).map(([key, value]) => [
-          key,
-          value * (key === 'direction' || key.startsWith('centroid') ? 1 : this.intensity),
-        ]),
-      ) as SignatureFrame['features'],
-      normalized: Object.fromEntries(
-        Object.entries(source.normalized).map(([key, value]) => [
-          key,
-          value * (key === 'direction' || key.startsWith('centroid') ? 1 : this.intensity),
-        ]),
-      ) as SignatureFrame['normalized'],
-    };
+    const frame = scaledMotionFrame(source, this.intensity);
     material.step(frame, this.visualProps, dt);
     material.draw();
   };

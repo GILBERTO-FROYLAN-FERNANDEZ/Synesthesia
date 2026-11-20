@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AudioEngine } from '../../engine/audio/AudioEngine';
 import { baselineValues } from '../../materials/properties';
 import { getSoundMaterial } from '../../materials/registry';
+import type { PropertyValues } from '../../materials/types';
 import { createSyntheticSampler } from '../../signature/synthetic';
 
 interface Session {
@@ -19,7 +20,7 @@ async function dispose(session: Session): Promise<void> {
 }
 
 /** Real one-shot material preview used by manual collaborative-region testing. */
-export function useManualSound(volume: number, muted: boolean, intensity: number) {
+export function useManualSound(volume: number, muted: boolean, intensity: number, properties?: PropertyValues) {
   const sessionRef = useRef<Session | null>(null);
   const tokenRef = useRef(0);
   const [state, setState] = useState<'idle' | 'loading' | 'playing' | 'error'>('idle');
@@ -60,7 +61,7 @@ export function useManualSound(volume: number, muted: boolean, intensity: number
         await engine.load({
           entry,
           sampler,
-          props: baselineValues(entry.meta.properties),
+          props: properties ?? baselineValues(entry.meta.properties),
           seed: 3,
         });
         if (token !== tokenRef.current) {
@@ -87,8 +88,12 @@ export function useManualSound(volume: number, muted: boolean, intensity: number
         setError('The sound test could not start on this device.');
       }
     },
-    [intensity, muted, stop, volume],
+    [intensity, muted, properties, stop, volume],
   );
+
+  useEffect(() => {
+    if (properties) sessionRef.current?.engine.setProps(properties);
+  }, [properties]);
 
   useEffect(() => {
     const session = sessionRef.current;

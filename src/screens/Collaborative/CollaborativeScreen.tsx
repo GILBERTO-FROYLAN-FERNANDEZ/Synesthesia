@@ -5,6 +5,7 @@ import type { PropertyValues } from '../../materials/types';
 import { createSyntheticSampler } from '../../signature/synthetic';
 import { Button } from '../../ui/Button';
 import { MaterialPicker } from '../../ui/MaterialPicker';
+import { MovementZoneOverlay } from '../../ui/MovementZoneOverlay';
 import { SegmentedControl } from '../../ui/SegmentedControl';
 import { Slider } from '../../ui/Slider';
 import { StatusBadge } from '../../ui/StatusBadge';
@@ -100,6 +101,8 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
   const [preset, setPreset] = useState<PresetId>('default');
   const [basePreset, setBasePreset] = useState<Exclude<PresetId, 'custom'>>('default');
   const [manualMode, setManualMode] = useState(false);
+  const [showMovementZones, setShowMovementZones] = useState(true);
+  const [cameraAspect, setCameraAspect] = useState('4 / 3');
   const [volume, setVolume] = useState(70);
   const [muted, setMuted] = useState(false);
   const [intensity, setIntensity] = useState(0.7);
@@ -357,8 +360,24 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
             </div>
           </div>
 
-          <div className={styles.cameraPreview} data-connected={camera.state === 'connected' ? '' : undefined}>
-            <video ref={videoRef} autoPlay muted playsInline />
+          <div
+            className={styles.cameraPreview}
+            style={{ aspectRatio: cameraAspect }}
+            data-connected={camera.state === 'connected' ? '' : undefined}
+          >
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              onLoadedMetadata={(event) => {
+                const { videoWidth, videoHeight } = event.currentTarget;
+                if (videoWidth && videoHeight) setCameraAspect(`${videoWidth} / ${videoHeight}`);
+              }}
+            />
+            {camera.state === 'connected' && showMovementZones
+              ? <MovementZoneOverlay activeRegion={manualMode ? null : activeRegion} />
+              : null}
             {camera.state === 'connected' ? null : (
               <div className={styles.cameraEmpty}>
                 <span className={styles.cameraGlyph} aria-hidden="true" />
@@ -404,6 +423,13 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
                 activeRegion === null ? 'Move in front of the camera to activate a sound region.' :
                   `Movement is activating ${REGION_NAMES[activeRegion]}.`}
           </p>
+          <Toggle
+            label="Show camera movement zones"
+            checked={showMovementZones}
+            accent="water"
+            onChange={setShowMovementZones}
+            description="The cyan cell marks the strongest camera movement. It is not a body outline."
+          />
           {camera.state === 'connected' && trackingState?.kind === 'fallback' ? (
             <p className={styles.trackingError} role="alert">
               Body tracking unavailable: {trackingState.reason} Camera motion tracking is still active.

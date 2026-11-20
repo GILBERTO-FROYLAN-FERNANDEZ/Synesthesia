@@ -18,6 +18,8 @@ export interface PropertyPanelProps {
   label: string;
   /** Start with "More" open. */
   defaultExpanded?: boolean;
+  /** Denser layout for the live inspector. */
+  compact?: boolean;
 }
 
 /** Sliders and choices for one material's properties (SPEC 9.1: at most 6 primary, and Hue). */
@@ -30,6 +32,7 @@ export function PropertyPanel({
   linkedIds,
   label,
   defaultExpanded = false,
+  compact = false,
 }: PropertyPanelProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const primary = defs.filter((d) => d.primary);
@@ -61,13 +64,14 @@ export function PropertyPanel({
         locked={locked}
         onUnlock={onUnlock ? () => onUnlock(def.id) : undefined}
         accent={linkedIds?.has(def.id) ? 'water' : 'honey'}
+        showValue={compact}
         onChange={(v, phase) => onChange(def.id, v, phase)}
       />
     );
   };
 
   return (
-    <div className={styles.panel} role="group" aria-label={label}>
+    <div className={`${styles.panel} ${compact ? styles.compact : ''}`} role="group" aria-label={label}>
       {primary.map(renderDef)}
       {more.length > 0 ? (
         <>
@@ -80,7 +84,7 @@ export function PropertyPanel({
             <span className={styles.chevron} aria-hidden="true">
               {expanded ? '▾' : '▸'}
             </span>
-            {expanded ? 'Fewer' : `More (${more.length})`}
+            {expanded ? 'Show less' : 'Show more'}
           </button>
           {expanded ? <div className={styles.moreList}>{more.map(renderDef)}</div> : null}
         </>

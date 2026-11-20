@@ -24,6 +24,12 @@ test('live camera recording becomes an editable Library composition', async ({ p
   await expect(page.getByRole('button', { name: /Start Performance/ })).toBeEnabled();
   await page.getByRole('button', { name: /Start Performance/ }).click();
   await expect(page.getByText(/(?:Body|Camera motion) tracking live/)).toBeVisible({ timeout: 30_000 });
+  await page.getByRole('radiogroup', { name: 'Material properties' }).getByRole('radio', { name: 'Sound' }).click();
+  const viscosity = page.getByRole('group', { name: 'Water sound properties' })
+    .getByRole('slider', { name: 'Viscosity' });
+  await viscosity.press('ArrowRight');
+  const savedViscosity = Number(await viscosity.getAttribute('aria-valuenow'));
+  expect(savedViscosity).toBeGreaterThan(0.5);
   await page.getByRole('switch', { name: 'Record original camera separately' }).check();
   await page.getByRole('button', { name: 'Start Recording' }).click();
   await page.waitForTimeout(2_000);
@@ -49,6 +55,9 @@ test('live camera recording becomes an editable Library composition', async ({ p
   await page.getByRole('button', { name: 'Back to Library' }).click();
   await compositions.getByRole('button', { name: /^Open / }).click();
   await expect(page.getByTestId('save-state')).toHaveText('Saved');
+  await page.getByRole('tab', { name: 'Sound' }).click();
+  await expect(page.getByRole('slider', { name: 'Viscosity', exact: true }))
+    .toHaveAttribute('aria-valuenow', String(savedViscosity));
   await expect(page.getByRole('button', { name: 'Source', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Source', exact: true }).click();
   await expect(page.locator('video')).toHaveCount(2);

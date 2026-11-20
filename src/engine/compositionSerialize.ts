@@ -132,7 +132,7 @@ function readSettingChanges(value: unknown, fail: Fail): TimestampedSettingChang
   return value.map((item, index) => {
     const path = `performance.timestampedSettingChanges[${index}]`;
     const o = readObject(item, path, fail);
-    return {
+    const change: TimestampedSettingChange = {
       atSec: readNumber(o, 'atSec', path, fail, { min: 0, max: 86_400 }),
       visualMaterialId: readString(o, 'visualMaterialId', path, fail, {
         nonEmpty: true,
@@ -147,6 +147,13 @@ function readSettingChanges(value: unknown, fail: Fail): TimestampedSettingChang
       muted: readBoolean(o, 'muted', path, fail),
       sensitivity: readNumber(o, 'sensitivity', path, fail, { min: 0, max: 2 }),
     };
+    if (o.visualProperties !== undefined)
+      change.visualProperties = readProperties(o.visualProperties, `${path}.visualProperties`, fail);
+    if (o.soundProperties !== undefined)
+      change.soundProperties = readProperties(o.soundProperties, `${path}.soundProperties`, fail);
+    if (o.bodyTrackingEnabled !== undefined)
+      change.bodyTrackingEnabled = readBoolean(o, 'bodyTrackingEnabled', path, fail);
+    return change;
   });
 }
 
@@ -219,6 +226,10 @@ function readPerformance(value: unknown, fail: Fail): PerformanceMetadata {
         max: 2,
       }),
     };
+    if (m.bodyTrackingEnabled !== undefined)
+      performance.mappingSettings.bodyTrackingEnabled = readBoolean(
+        m, 'bodyTrackingEnabled', 'performance.mappingSettings', fail,
+      );
   }
   performance.timestampedSettingChanges = readSettingChanges(o.timestampedSettingChanges, fail);
   return performance;

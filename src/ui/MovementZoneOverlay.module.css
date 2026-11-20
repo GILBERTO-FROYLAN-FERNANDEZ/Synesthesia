@@ -1,0 +1,24 @@
+.grid {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  pointer-events: none;
+}
+
+.grid span {
+  border-right: 1px solid color-mix(in srgb, var(--color-water) 38%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-water) 38%, transparent);
+  background: color-mix(in srgb, var(--color-deep) 7%, transparent);
+}
+
+.grid span:nth-child(3n) { border-right: 0; }
+.grid span:nth-last-child(-n + 3) { border-bottom: 0; }
+
+.grid span[data-active] {
+  border: 2px solid var(--color-water);
+  background: color-mix(in srgb, var(--color-water) 20%, transparent);
+  box-shadow: inset 0 0 24px color-mix(in srgb, var(--color-water) 28%, transparent);
+}

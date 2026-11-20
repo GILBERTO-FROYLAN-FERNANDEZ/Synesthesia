@@ -1,17 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
 import { navigate } from '../../app/router';
 import type { TimestampedSettingChange } from '../../engine/composition';
+import { baselineValues } from '../../materials/properties';
 import {
+  SIGNATURE_VIEW_ID,
   getSoundMaterial,
   getVisualMaterial,
+  listCreativeVisualMaterials,
   listSoundMaterials,
-  listVisualMaterials,
 } from '../../materials/registry';
 import { Button } from '../../ui/Button';
+import { MaterialPicker } from '../../ui/MaterialPicker';
+import { MOVEMENT_ZONE_NAMES, MovementZoneOverlay } from '../../ui/MovementZoneOverlay';
+import { PropertyPanel } from '../../ui/PropertyPanel';
+import { SegmentedControl } from '../../ui/SegmentedControl';
 import { Slider } from '../../ui/Slider';
 import { Toggle } from '../../ui/Toggle';
+import { useManualSound } from '../Collaborative/useManualSound';
 import { LivePerformanceRuntime } from './liveRuntime';
 import type { LiveTrackingState } from './liveMotion';
+import { motionRegion } from '../Collaborative/motionGrid';
 import {
   completePerformance,
   getActivePerformance,
@@ -34,17 +42,23 @@ export function PerformanceScreen() {
   const changesRef = useRef<TimestampedSettingChange[]>([]);
   const startedRef = useRef(0);
   const abandonTimerRef = useRef<number | null>(null);
-  const [settings, setSettings] = useState<PerformanceSettings>(
-    session?.settings ?? {
-      visualId: 'water',
-      soundId: 'water',
-      intensity: 1,
-      volume: 0.7,
-      muted: false,
-      sensitivity: 1,
-      recordSource: false,
-    },
-  );
+  const [settings, setSettings] = useState<PerformanceSettings>(() => {
+    const initial = session?.settings;
+    const visualId = initial?.visualId ?? 'water';
+    const soundId = initial?.soundId ?? 'water';
+    return {
+      visualId,
+      soundId,
+      visualProperties: initial?.visualProperties ?? baselineValues(getVisualMaterial(visualId)?.meta.properties ?? []),
+      soundProperties: initial?.soundProperties ?? baselineValues(getSoundMaterial(soundId)?.meta.properties ?? []),
+      bodyTrackingEnabled: initial?.bodyTrackingEnabled ?? true,
+      intensity: initial?.intensity ?? 1,
+      volume: initial?.volume ?? 0.7,
+      muted: initial?.muted ?? false,
+      sensitivity: initial?.sensitivity ?? 1,
+      recordSource: initial?.recordSource ?? false,
+    };
+  });
   const settingsRef = useRef(settings);
   const [elapsed, setElapsed] = useState(0);
   const [recording, setRecording] = useState(false);
@@ -55,7 +69,13 @@ export function PerformanceScreen() {
   const [error, setError] = useState<string | null>(null);
   const [visualNotice, setVisualNotice] = useState<string | null>(null);
   const [trackingState, setTrackingState] = useState<LiveTrackingState>({ kind: 'loading' });
+  const [inspectorTab, setInspectorTab] = useState(0);
+  const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [showMovementZones, setShowMovementZones] = useState(true);
+  const [activeRegion, setActiveRegion] = useState<number | null>(null);
+  const [cameraAspect, setCameraAspect] = useState('16 / 9');
   const [busy, setBusy] = useState(false);
+  const soundPreview = useManualSound(settings.volume * 100, settings.muted, 1, settings.soundProperties);
 
   useEffect(() => {
     if (abandonTimerRef.current !== null) {
@@ -109,13 +129,17 @@ export function PerformanceScreen() {
         const visual = await activeRuntime.start(settingsRef.current);
         if (disposed) return;
         if (visual.fallbackFrom) {
-          change({ visualId: visual.id });
+          change({
+            visualId: visual.id,
+            visualProperties: baselineValues(getVisualMaterial(visual.id)?.meta.properties ?? []),
+          });
           setVisualNotice(
             `${getVisualMaterial(visual.fallbackFrom)?.meta.name ?? 'The selected visual'} cannot render on this graphics card. Showing ${getVisualMaterial(visual.id)?.meta.name ?? visual.id} instead.`,
           );
         }
         activeRuntime.onMotion = (frame) => {
           setEnergy(Math.min(1, frame.features.energy * 5));
+          setActiveRegion(frame.features.energy >= 0.01 ? motionRegion(frame) : null);
         };
       } catch (caught) {
         if (disposed) return;
@@ -152,7 +176,7 @@ export function PerformanceScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.id]);
 
-  const change = (patch: Partial<PerformanceSettings>) => {
+  const change = (patch: Partial<PerformanceSettings>, record = true) => {
     const next = { ...settingsRef.current, ...patch };
     settingsRef.current = next;
     setSettings(next);
@@ -162,6 +186,10 @@ export function PerformanceScreen() {
     if (patch.volume !== undefined) runtime.setVolume(next.volume);
     if (patch.muted !== undefined) runtime.setMuted(next.muted);
     if (patch.sensitivity !== undefined) runtime.setSensitivity(next.sensitivity);
+    if (patch.bodyTrackingEnabled !== undefined) runtime.setBodyTrackingEnabled(next.bodyTrackingEnabled);
+    if (patch.visualProperties !== undefined) runtime.setVisualProperties(next.visualProperties);
+    if (patch.soundProperties !== undefined) runtime.setSoundProperties(next.soundProperties);
+    if (!record) return;
     changesRef.current.push({
       atSec: (performance.now() - startedRef.current) / 1000,
       visualMaterialId: next.visualId,
@@ -170,6 +198,9 @@ export function PerformanceScreen() {
       volume: next.volume,
       muted: next.muted,
       sensitivity: next.sensitivity,
+      visualProperties: { ...next.visualProperties },
+      soundProperties: { ...next.soundProperties },
+      bodyTrackingEnabled: next.bodyTrackingEnabled,
     });
   };
 
@@ -177,7 +208,10 @@ export function PerformanceScreen() {
     try {
       const visual = await runtimeRef.current?.setVisual(visualId);
       if (!visual) return;
-      change({ visualId: visual.id });
+      change({
+        visualId: visual.id,
+        visualProperties: baselineValues(getVisualMaterial(visual.id)?.meta.properties ?? []),
+      });
       setError(null);
       setVisualNotice(
         visual.fallbackFrom
@@ -191,7 +225,10 @@ export function PerformanceScreen() {
   const selectSound = async (soundId: string) => {
     try {
       await runtimeRef.current?.setSound(soundId);
-      change({ soundId });
+      change({
+        soundId,
+        soundProperties: baselineValues(getSoundMaterial(soundId)?.meta.properties ?? []),
+      });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'The sound could not be changed.');
     }
@@ -289,6 +326,12 @@ export function PerformanceScreen() {
     );
   }
 
+  const editingVisual = inspectorTab === 0;
+  const selectedMaterial = editingVisual
+    ? getVisualMaterial(settings.visualId)
+    : getSoundMaterial(settings.soundId);
+  const diagnosticVisual = editingVisual && settings.visualId === SIGNATURE_VIEW_ID;
+
   return (
     <section className={styles.page}>
       <header className={styles.header}>
@@ -305,53 +348,150 @@ export function PerformanceScreen() {
 
       {error ? <p className={styles.error}>{error}</p> : null}
       {visualNotice ? <p className={styles.notice} role="status">{visualNotice}</p> : null}
-      <div className={styles.workspace}>
+      <div className={`${styles.workspace} ${inspectorOpen ? '' : styles.inspectorClosed}`}>
         <aside className={styles.side}>
-          <div className={styles.camera}>
-            <video ref={videoRef} autoPlay muted playsInline />
-            <span>{session.cameraName || 'Active camera'}</span>
+          <div className={styles.sourceHeading}>
+            <span className={styles.eyebrow}>Movement source</span>
+            <h2>Live camera</h2>
+          </div>
+          <div className={styles.camera} style={{ aspectRatio: cameraAspect }}>
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              onLoadedMetadata={(event) => {
+                const { videoWidth, videoHeight } = event.currentTarget;
+                if (videoWidth && videoHeight) setCameraAspect(`${videoWidth} / ${videoHeight}`);
+              }}
+            />
+            {showMovementZones ? <MovementZoneOverlay activeRegion={activeRegion} /> : null}
+            <span className={styles.cameraName}>{session.cameraName || 'Active camera'}</span>
           </div>
           <div className={styles.tracking}>
-            <strong>Movement energy</strong>
+            <strong>Movement</strong>
             <div><span style={{ width: `${energy * 100}%` }} /></div>
-            <small>{trackingState.kind === 'body' ? 'Body-segmented optical flow' :
-              trackingState.kind === 'loading' ? 'Loading body tracking · camera motion active' :
-                'Camera-derived block optical flow'} · {Math.round(energy * 100)}%</small>
+            <small className={styles.trackingLine} title={trackingState.kind === 'body' ? 'Body-segmented optical flow is active.' :
+              trackingState.kind === 'loading' ? 'The body model is loading. Camera motion tracking is active meanwhile.' :
+                trackingState.kind === 'camera' ? 'Body tracking is off. Camera motion tracking is active.' :
+                  'The body model is unavailable. Camera motion tracking is active.'}>
+              <span>{trackingState.kind === 'body' ? 'Body tracking' : trackingState.kind === 'loading' ? 'Loading body…' : trackingState.kind === 'camera' ? 'Camera motion' : 'Camera fallback'}</span>
+              <span>{Math.round(energy * 100)}%</span>
+            </small>
+            {showMovementZones ? <small className={styles.trackingLine} role="status"><span>{activeRegion === null
+              ? 'Active zone: —'
+              : `Active zone: ${MOVEMENT_ZONE_NAMES[activeRegion]}`}</span></small> : null}
             {trackingState.kind === 'fallback' ? (
               <small className={styles.trackingWarning} role="alert">
                 Body tracking unavailable: {trackingState.reason} Camera motion tracking is still active.
               </small>
             ) : null}
-            <small role="status">Sound response: {settings.muted ? 'Muted' : soundActive ? 'Active' : 'Waiting for movement'}</small>
+            <small className={styles.trackingLine} role="status"><span>Sound: {settings.muted ? 'Muted' : soundActive ? 'Active' : 'Waiting'}</span></small>
           </div>
-          <label>
-            Visual material
-            <select value={settings.visualId} onChange={(e) => void selectVisual(e.target.value)}>
-              {listVisualMaterials().map((entry) => (
-                <option key={entry.meta.id} value={entry.meta.id}>{entry.meta.name}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Sound material
-            <select value={settings.soundId} onChange={(e) => void selectSound(e.target.value)}>
-              {listSoundMaterials().map((entry) => (
-                <option key={entry.meta.id} value={entry.meta.id}>{entry.meta.name}</option>
-              ))}
-            </select>
-          </label>
-          <Slider label="Intensity" value={settings.intensity} min={0} max={3} step={0.05} baseline={1} showValue onChange={(intensity) => change({ intensity })} />
-          <Slider label="Volume" value={settings.volume} min={0} max={1} step={0.01} baseline={0.7} showValue format={(v) => `${Math.round(v * 100)}%`} onChange={(volume) => change({ volume })} />
-          <Slider label="Sensitivity" value={settings.sensitivity} min={0.2} max={2} step={0.05} baseline={1} showValue onChange={(sensitivity) => change({ sensitivity })} />
+          <div className={styles.controlGroupHeading} title="These controls affect the whole performance. The Inspector changes only the selected material.">
+            <strong>Performance controls</strong><span aria-hidden="true">ⓘ</span>
+          </div>
+          <Slider label="Movement strength" description="Scales the tracked movement sent to both visual and sound materials. The stillness gate uses the original camera motion." value={settings.intensity} min={0} max={3} step={0.05} baseline={1} showValue onChange={(intensity) => change({ intensity })} />
+          <Slider label="Volume" description="Overall output loudness for this performance; it does not change a material's character." value={settings.volume} min={0} max={1} step={0.01} baseline={0.7} showValue format={(v) => `${Math.round(v * 100)}%`} onChange={(volume) => change({ volume })} />
+          <Slider label="Sensitivity" description="How strongly the camera tracker detects motion before material controls are applied." value={settings.sensitivity} min={0.2} max={2} step={0.05} baseline={1} showValue onChange={(sensitivity) => change({ sensitivity })} />
           <Toggle label="Mute sound" checked={settings.muted} accent="water" onChange={(muted) => change({ muted })} />
           <Toggle label="Record original camera separately" checked={settings.recordSource} accent="honey" onChange={(recordSource) => change({ recordSource })} description="Applies when the next recording starts." />
         </aside>
         <div className={styles.stage}>
+          <div className={styles.stageHeader}>
+            <div>
+              <span className={styles.eyebrow}>Live output</span>
+              <strong>{getVisualMaterial(settings.visualId)?.meta.name ?? 'Visual'} response</strong>
+              <small>{getVisualMaterial(settings.visualId)?.meta.name} visual · {getSoundMaterial(settings.soundId)?.meta.name} sound</small>
+            </div>
+            <div className={styles.stageActions}>
+              <button
+                type="button"
+                className={`${styles.openInspector} ${inspectorOpen ? styles.openInspectorHidden : ''}`}
+                onClick={() => setInspectorOpen(true)}
+                aria-controls="perform-material-inspector"
+                aria-expanded={inspectorOpen}
+                inert={inspectorOpen}
+              >
+                Show visual controls
+              </button>
+              <span className={styles.stageLive}><i aria-hidden="true" />{recording ? 'Recording' : 'Live'}</span>
+            </div>
+          </div>
           <div ref={stageRef} className={styles.canvasHost} />
           <div className={styles.stageLabel}>
             {getVisualMaterial(settings.visualId)?.meta.name} · {getSoundMaterial(settings.soundId)?.meta.name}
           </div>
         </div>
+        <aside
+          id="perform-material-inspector"
+          className={styles.inspector}
+          aria-label="Live material controls"
+          aria-hidden={!inspectorOpen}
+          inert={!inspectorOpen}
+        >
+          <div className={styles.inspectorHeading}>
+            <div><span className={styles.eyebrow}>Selected {editingVisual ? 'visual' : 'sound'} layer</span><h2>{editingVisual ? 'Visual material' : 'Sound material'}</h2></div>
+            <button type="button" className={styles.collapseInspector} onClick={() => setInspectorOpen(false)} aria-label="Hide material controls" title="Hide material controls">Hide panel ‹</button>
+          </div>
+          <div className={styles.trackingControls}>
+            <Toggle
+              label="Use body tracking"
+              checked={settings.bodyTrackingEnabled}
+              accent="water"
+              onChange={(bodyTrackingEnabled) => change({ bodyTrackingEnabled })}
+              description="Off uses camera motion without the body model."
+            />
+            <Toggle
+              label="Show movement zones"
+              checked={showMovementZones}
+              accent="water"
+              onChange={setShowMovementZones}
+              description="Highlight the strongest moving third of the camera image. This is not a body outline."
+            />
+          </div>
+          <SegmentedControl
+            label="Material properties"
+            hideLabel
+            options={['Visual', 'Sound']}
+            value={inspectorTab}
+            onChange={setInspectorTab}
+          />
+          <p className={styles.inspectorHint} title="The left sliders affect the whole performance. These sliders shape only the selected visual or sound material.">
+            {diagnosticVisual ? 'Showing the motion field for diagnostics.' : editingVisual ? 'Shape the current visual. Move to see the effect.' : 'Shape the current sound. Move or test it to hear the effect.'}
+          </p>
+          <div className={styles.materialSelect}>
+            <span>{editingVisual ? 'Visual material' : 'Sound material'}</span>
+            <MaterialPicker
+              kind={editingVisual ? 'Visual' : 'Sound'}
+              options={[
+                ...(diagnosticVisual ? [{ id: SIGNATURE_VIEW_ID, name: 'Tracking diagnostic', description: 'Shows the raw motion field when other visuals cannot render.' }] : []),
+                ...(editingVisual ? listCreativeVisualMaterials() : listSoundMaterials()).map((entry) => entry.meta),
+              ]}
+              value={editingVisual ? settings.visualId : settings.soundId}
+              onChange={(id) => void (editingVisual ? selectVisual(id) : selectSound(id))}
+            />
+          </div>
+          {diagnosticVisual ? <p className={styles.diagnosticNotice}>The graphics card could not render a visual material. This view shows tracked movement directly; choose another visual material above to try it.</p> : <PropertyPanel
+            key={`${editingVisual ? 'visual' : 'sound'}:${selectedMaterial?.meta.id ?? ''}`}
+            label={`${selectedMaterial?.meta.name ?? 'Material'} ${editingVisual ? 'visual' : 'sound'} properties`}
+            defs={selectedMaterial?.meta.properties ?? []}
+            values={editingVisual ? settings.visualProperties : settings.soundProperties}
+            compact
+            onChange={(id, value, phase) => change(
+              editingVisual
+                ? { visualProperties: { ...settingsRef.current.visualProperties, [id]: value } }
+                : { soundProperties: { ...settingsRef.current.soundProperties, [id]: value } },
+              phase === 'end',
+            )}
+          />}
+          {!editingVisual ? <div className={styles.soundTest}>
+            <Button onClick={() => void (soundPreview.state === 'playing' ? soundPreview.stop() : soundPreview.play(settings.soundId))} disabled={soundPreview.state === 'loading' || settings.muted}>
+              {soundPreview.state === 'playing' ? 'Stop test' : soundPreview.state === 'loading' ? 'Loading sound…' : 'Test sound'}
+            </Button>
+            {soundPreview.error ? <small role="alert">{soundPreview.error}</small> : null}
+          </div> : null}
+        </aside>
       </div>
       <footer className={styles.controls}>
         <Button

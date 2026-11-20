@@ -1,9 +1,13 @@
 import type { TimestampedSettingChange } from '../../engine/composition';
+import type { PropertyValues } from '../../materials/types';
 import type { KineticSignature } from '../../signature/types';
 
 export interface PerformanceSettings {
   visualId: string;
   soundId: string;
+  visualProperties: PropertyValues;
+  soundProperties: PropertyValues;
+  bodyTrackingEnabled: boolean;
   intensity: number;
   volume: number;
   muted: boolean;

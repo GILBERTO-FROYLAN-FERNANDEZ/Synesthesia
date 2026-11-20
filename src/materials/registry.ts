@@ -15,6 +15,11 @@ export function listVisualMaterials(): readonly VisualMaterialEntry[] {
   return VISUAL_MATERIALS;
 }
 
+/** The five expressive materials; Signature is a diagnostic field view. */
+export function listCreativeVisualMaterials(): readonly VisualMaterialEntry[] {
+  return VISUAL_MATERIALS.filter((material) => material.meta.id !== SIGNATURE_VIEW_ID);
+}
+
 export function listSoundMaterials(): readonly SoundMaterialEntry[] {
   return SOUND_MATERIALS;
 }

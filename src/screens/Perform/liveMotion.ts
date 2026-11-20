@@ -16,6 +16,7 @@ const SEARCH = 2;
 export type LiveTrackingState =
   | { kind: 'loading' }
   | { kind: 'body' }
+  | { kind: 'camera' }
   | { kind: 'fallback'; reason: string };
 
 function emptyFeatureRecord(): SignatureFrame['features'] {
@@ -62,6 +63,8 @@ export class LiveMotionTracker {
   private stopBodyTracking: (() => void) | null = null;
   private bodyTimeout = 0;
   private mode: 'body' | 'block' = 'block';
+  private running = false;
+  private bodyTrackingEnabled = true;
   private bodyFrames = 0;
   onFrame: ((frame: SignatureFrame) => void) | null = null;
   onTrackingState: ((state: LiveTrackingState) => void) | null = null;
@@ -93,17 +96,40 @@ export class LiveMotionTracker {
     this.sensitivity = Math.max(0.1, Math.min(2, value));
   }
 
-  start(): void {
+  start(bodyTrackingEnabled = true): void {
+    this.running = true;
+    this.bodyTrackingEnabled = bodyTrackingEnabled;
     this.captureStarted = performance.now();
     this.lastCapture = 0;
     this.mode = 'block';
-    this.onTrackingState?.({ kind: 'loading' });
     this.raf = requestAnimationFrame(this.tick);
+    if (bodyTrackingEnabled) this.startBodyTracking();
+    else this.onTrackingState?.({ kind: 'camera' });
+  }
+
+  setBodyTrackingEnabled(enabled: boolean): void {
+    if (enabled === this.bodyTrackingEnabled) return;
+    this.bodyTrackingEnabled = enabled;
+    if (!this.running) return;
+    if (enabled) {
+      this.startBodyTracking();
+      return;
+    }
+    window.clearTimeout(this.bodyTimeout);
+    this.stopBodyTracking?.();
+    this.stopBodyTracking = null;
+    this.activateBlockTracker();
+    this.onTrackingState?.({ kind: 'camera' });
+  }
+
+  private startBodyTracking(): void {
+    this.onTrackingState?.({ kind: 'loading' });
     try {
       this.stopBodyTracking = trackLiveBodyTrackingVideo(
         this.video,
         () => 0.002 / this.sensitivity,
         (frame) => {
+          if (!this.running || !this.bodyTrackingEnabled) return;
           window.clearTimeout(this.bodyTimeout);
           this.bodyTimeout = window.setTimeout(
             () => this.useBlockTracker('Body tracking stopped returning camera frames.'),
@@ -132,6 +158,7 @@ export class LiveMotionTracker {
   }
 
   stop(): void {
+    this.running = false;
     cancelAnimationFrame(this.raf);
     window.clearTimeout(this.bodyTimeout);
     this.stopBodyTracking?.();
@@ -177,10 +204,15 @@ export class LiveMotionTracker {
   }
 
   private useBlockTracker(reason: string): void {
+    if (!this.running || !this.bodyTrackingEnabled) return;
     window.clearTimeout(this.bodyTimeout);
     this.stopBodyTracking?.();
     this.stopBodyTracking = null;
     this.onTrackingState?.({ kind: 'fallback', reason });
+    this.activateBlockTracker();
+  }
+
+  private activateBlockTracker(): void {
     if (this.mode === 'block') return;
     this.mode = 'block';
     this.previous = null;
