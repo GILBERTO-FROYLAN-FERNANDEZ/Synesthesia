@@ -137,9 +137,13 @@ export function LiveStudioScreen() {
     };
   }, [initial, gridEngine]);
 
+  // While the sound grid plays, it replaces the material sound; the choice comes back after.
+  const gridSounding = grid.sounding;
   useEffect(() => {
-    runtimeRef.current?.setComposition(composition);
-  }, [composition]);
+    runtimeRef.current?.setComposition(
+      gridSounding ? { ...composition, mute: { ...composition.mute, sound: true } } : composition,
+    );
+  }, [composition, gridSounding]);
 
   return (
     <section className={`${styles.studio} ${styles.liveStudio}`} aria-labelledby="live-title">
@@ -180,7 +184,7 @@ export function LiveStudioScreen() {
             }}
           />
           <Button
-            disabled={cameraError !== null}
+            disabled={cameraError !== null || gridSounding}
             onClick={() => {
               if (composition.mute.sound) runtimeRef.current?.play();
               setComposition((current) => ({

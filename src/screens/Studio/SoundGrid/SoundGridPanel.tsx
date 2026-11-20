@@ -51,7 +51,7 @@ export function SoundGridPanel({ grid, disabled = false }: SoundGridPanelProps) 
         accent="water"
         disabled={disabled}
         onChange={grid.setSounding}
-        description="Turns the grid's sound on. The material sound keeps its own switch."
+        description="Plays the grid instead of the material sound. Turn it off to hear the material again."
       />
       {grid.error ? (
         <p className={styles.error} role="alert">
