@@ -20,6 +20,9 @@ import { PropertyPanel } from '../../ui/PropertyPanel';
 import { Slider } from '../../ui/Slider';
 import { floorFromSensitivity, formatSensitivity } from '../Prepare/sensitivity';
 import styles from './Studio.module.css';
+import { SoundGridCamera } from './SoundGrid/SoundGridCamera';
+import { SoundGridPanel } from './SoundGrid/SoundGridPanel';
+import { useSoundGrid } from './SoundGrid/useSoundGrid';
 
 function initialComposition(): Composition {
   const composition = createComposition({
@@ -47,6 +50,8 @@ export function LiveStudioScreen() {
   const hostRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const runtimeRef = useRef<StudioRuntime | null>(null);
+  const grid = useSoundGrid();
+  const gridEngine = grid.engine;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -108,6 +113,7 @@ export function LiveStudioScreen() {
           () => noiseFloor.current,
           (frame, onset) => {
             source.update(frame, runtime.position, onset);
+            gridEngine.update(frame);
             if (!receivedMotion) {
               receivedMotion = true;
               setStatus('Live');
@@ -129,7 +135,7 @@ export function LiveStudioScreen() {
       runtimeRef.current = null;
       runtime.dispose();
     };
-  }, [initial]);
+  }, [initial, gridEngine]);
 
   useEffect(() => {
     runtimeRef.current?.setComposition(composition);
@@ -152,6 +158,9 @@ export function LiveStudioScreen() {
             className={styles.liveCamera}
             aria-label="Webcam preview"
           />
+          {grid.shown ? (
+            <SoundGridCamera engine={gridEngine} source={videoRef} mirror={grid.settings.mirror} />
+          ) : null}
           {cameraError || picture ? (
             <p className={styles.pictureProblem} role="alert">
               {cameraError ?? 'Could not show this visual. Try choosing another material.'}
@@ -229,6 +238,7 @@ export function LiveStudioScreen() {
               </div>
             );
           })}
+          <SoundGridPanel grid={grid} disabled={cameraError !== null} />
         </aside>
       </div>
     </section>
