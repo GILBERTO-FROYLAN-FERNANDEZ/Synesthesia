@@ -20,6 +20,10 @@ import { PropertyPanel } from '../../ui/PropertyPanel';
 import { Slider } from '../../ui/Slider';
 import { floorFromSensitivity, formatSensitivity } from '../Prepare/sensitivity';
 import styles from './Studio.module.css';
+import gridStyles from './SoundGrid/SoundGrid.module.css';
+import { SoundGridCamera } from './SoundGrid/SoundGridCamera';
+import { SoundGridPanel } from './SoundGrid/SoundGridPanel';
+import { useSoundGrid } from './SoundGrid/useSoundGrid';
 
 function initialComposition(): Composition {
   const composition = createComposition({
@@ -47,6 +51,8 @@ export function LiveStudioScreen() {
   const hostRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const runtimeRef = useRef<StudioRuntime | null>(null);
+  const grid = useSoundGrid();
+  const gridEngine = grid.engine;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -108,6 +114,7 @@ export function LiveStudioScreen() {
           () => noiseFloor.current,
           (frame, onset) => {
             source.update(frame, runtime.position, onset);
+            gridEngine.update(frame);
             if (!receivedMotion) {
               receivedMotion = true;
               setStatus('Live');
@@ -129,7 +136,7 @@ export function LiveStudioScreen() {
       runtimeRef.current = null;
       runtime.dispose();
     };
-  }, [initial]);
+  }, [initial, gridEngine]);
 
   useEffect(() => {
     runtimeRef.current?.setComposition(composition);
@@ -149,9 +156,12 @@ export function LiveStudioScreen() {
             ref={videoRef}
             muted
             playsInline
-            className={styles.liveCamera}
+            className={`${styles.liveCamera} ${grid.shown ? gridStyles.previewBehindGrid : ''}`}
             aria-label="Webcam preview"
           />
+          {grid.shown ? (
+            <SoundGridCamera engine={gridEngine} source={videoRef} showCamera={grid.showCamera} />
+          ) : null}
           {cameraError || picture ? (
             <p className={styles.pictureProblem} role="alert">
               {cameraError ?? 'Could not show this visual. Try choosing another material.'}
@@ -172,24 +182,15 @@ export function LiveStudioScreen() {
               setSensitivity(value);
             }}
           />
-          <Button
-            disabled={cameraError !== null}
-            onClick={() => {
-              if (composition.mute.sound) runtimeRef.current?.play();
-              setComposition((current) => ({
-                ...current,
-                mute: { ...current.mute, sound: !current.mute.sound },
-              }));
-            }}
-          >
-            {composition.mute.sound ? 'Enable sound' : 'Mute sound'}
-          </Button>
+          {/* Live Motion's sound is the sound grid; the sound materials stay muted here. */}
+          <SoundGridPanel grid={grid} disabled={cameraError !== null} />
           {sound && !composition.mute.sound ? <p role="status">Sound is unavailable.</p> : null}
           {(['visual', 'sound'] as const).map((kind) => {
             const entries = kind === 'visual' ? listVisualMaterials() : listSoundMaterials();
             const field = composition[kind];
             const material = entries.find(({ meta }) => meta.id === field.materialId)?.meta;
             const label = kind === 'visual' ? 'Visual' : 'Sound';
+            if (kind === 'sound') return null; // Sound comes from the sound grid.
             return (
               <div className={styles.section} key={kind}>
                 <MaterialPicker
