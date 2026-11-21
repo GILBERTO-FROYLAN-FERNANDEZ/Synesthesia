@@ -137,13 +137,9 @@ export function LiveStudioScreen() {
     };
   }, [initial, gridEngine]);
 
-  // While the sound grid plays, it replaces the material sound; the choice comes back after.
-  const gridSounding = grid.sounding;
   useEffect(() => {
-    runtimeRef.current?.setComposition(
-      gridSounding ? { ...composition, mute: { ...composition.mute, sound: true } } : composition,
-    );
-  }, [composition, gridSounding]);
+    runtimeRef.current?.setComposition(composition);
+  }, [composition]);
 
   return (
     <section className={`${styles.studio} ${styles.liveStudio}`} aria-labelledby="live-title">
@@ -183,24 +179,15 @@ export function LiveStudioScreen() {
               setSensitivity(value);
             }}
           />
-          <Button
-            disabled={cameraError !== null || gridSounding}
-            onClick={() => {
-              if (composition.mute.sound) runtimeRef.current?.play();
-              setComposition((current) => ({
-                ...current,
-                mute: { ...current.mute, sound: !current.mute.sound },
-              }));
-            }}
-          >
-            {composition.mute.sound ? 'Enable sound' : 'Mute sound'}
-          </Button>
+          {/* Live Motion's sound is the sound grid; the sound materials stay muted here. */}
+          <SoundGridPanel grid={grid} disabled={cameraError !== null} />
           {sound && !composition.mute.sound ? <p role="status">Sound is unavailable.</p> : null}
           {(['visual', 'sound'] as const).map((kind) => {
             const entries = kind === 'visual' ? listVisualMaterials() : listSoundMaterials();
             const field = composition[kind];
             const material = entries.find(({ meta }) => meta.id === field.materialId)?.meta;
             const label = kind === 'visual' ? 'Visual' : 'Sound';
+            if (kind === 'sound') return null; // Sound comes from the sound grid.
             return (
               <div className={styles.section} key={kind}>
                 <MaterialPicker
@@ -240,7 +227,6 @@ export function LiveStudioScreen() {
               </div>
             );
           })}
-          <SoundGridPanel grid={grid} disabled={cameraError !== null} />
         </aside>
       </div>
     </section>
