@@ -20,6 +20,7 @@ import { PropertyPanel } from '../../ui/PropertyPanel';
 import { Slider } from '../../ui/Slider';
 import { floorFromSensitivity, formatSensitivity } from '../Prepare/sensitivity';
 import styles from './Studio.module.css';
+import gridStyles from './SoundGrid/SoundGrid.module.css';
 import { SoundGridCamera } from './SoundGrid/SoundGridCamera';
 import { SoundGridPanel } from './SoundGrid/SoundGridPanel';
 import { useSoundGrid } from './SoundGrid/useSoundGrid';
@@ -155,10 +156,12 @@ export function LiveStudioScreen() {
             ref={videoRef}
             muted
             playsInline
-            className={styles.liveCamera}
+            className={`${styles.liveCamera} ${grid.shown ? gridStyles.previewBehindGrid : ''}`}
             aria-label="Webcam preview"
           />
-          {grid.shown ? <SoundGridCamera engine={gridEngine} source={videoRef} /> : null}
+          {grid.shown ? (
+            <SoundGridCamera engine={gridEngine} source={videoRef} showCamera={grid.showCamera} />
+          ) : null}
           {cameraError || picture ? (
             <p className={styles.pictureProblem} role="alert">
               {cameraError ?? 'Could not show this visual. Try choosing another material.'}

@@ -44,6 +44,15 @@ export function SoundGridPanel({ grid, disabled = false }: SoundGridPanelProps) 
         accent="water"
         disabled={disabled}
         onChange={grid.setShown}
+        description="Shows the grid in the top-right corner, in place of the camera preview."
+      />
+      <Toggle
+        label="Show the camera"
+        checked={grid.showCamera}
+        accent="water"
+        disabled={disabled || !grid.shown}
+        onChange={grid.setShowCamera}
+        description="Your camera under the grid. Off shows the grid alone."
       />
       <Toggle
         label="Play the grid"

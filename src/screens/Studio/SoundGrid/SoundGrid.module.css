@@ -1,15 +1,21 @@
-/* Sound grid: camera with zones over the stage, and its panel section. */
+/* Sound grid: camera with zones in the stage's top-right corner, and its panel section. */
 
 .camera {
   position: absolute;
-  left: var(--space-3);
-  bottom: var(--space-3);
-  width: min(46%, 440px);
+  top: var(--space-3);
+  right: var(--space-3);
+  width: min(38%, 420px);
   display: flex;
-  justify-content: flex-start;
-  align-items: flex-end;
+  justify-content: flex-end;
+  align-items: flex-start;
   pointer-events: none;
   z-index: 2;
+}
+
+/* The screen's own small preview, while the grid stands in for it. Faded rather than
+   removed: the tracker reads frames from that video, and a hidden one may stop sending. */
+.previewBehindGrid {
+  opacity: 0;
 }
 
 .frame {
@@ -128,6 +134,6 @@
 
 @media (max-width: 900px) {
   .camera {
-    width: min(60%, 360px);
+    width: min(50%, 320px);
   }
 }

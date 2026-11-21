@@ -12,6 +12,9 @@ export interface SoundGridControls {
   /** Grid shown over the camera (zones measured). */
   shown: boolean;
   setShown: (shown: boolean) => void;
+  /** Camera image under the grid. */
+  showCamera: boolean;
+  setShowCamera: (show: boolean) => void;
   /** Grid sound on. Turning it on must come from a click (autoplay policy). */
   sounding: boolean;
   setSounding: (sounding: boolean) => void;
@@ -29,6 +32,7 @@ export function useSoundGrid(initial: Partial<SoundGridSettings> = {}): SoundGri
     ...initial,
   }));
   const [shown, setShownState] = useState(false);
+  const [showCamera, setShowCamera] = useState(true);
   const [sounding, setSoundingState] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,5 +71,16 @@ export function useSoundGrid(initial: Partial<SoundGridSettings> = {}): SoundGri
     [setSounding],
   );
 
-  return { engine, settings, setSettings, shown, setShown, sounding, setSounding, error };
+  return {
+    engine,
+    settings,
+    setSettings,
+    shown,
+    setShown,
+    showCamera,
+    setShowCamera,
+    sounding,
+    setSounding,
+    error,
+  };
 }
