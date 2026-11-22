@@ -15,6 +15,10 @@
   grid-template-columns: minmax(0, 1fr) 360px;
 }
 
+.screen[data-chooser] .layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .work {
   display: flex;
   flex-direction: column;
@@ -30,6 +34,10 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   background: var(--color-surround);
+}
+
+.screen[data-chooser] .stage {
+  background: #061823;
 }
 
 .stage[data-layout='split'] {
@@ -119,6 +127,9 @@
   .stage {
     flex: none;
     min-height: 260px;
+  }
+  .screen[data-chooser] .stage {
+    min-height: calc(100svh - 64px);
   }
   .stage[data-shaped] {
     aspect-ratio: var(--stage-aspect);

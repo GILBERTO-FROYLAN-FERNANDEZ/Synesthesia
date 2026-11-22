@@ -544,7 +544,12 @@ export function PrepareScreen(_props: { params?: Record<string, string> }) {
       : undefined;
 
   return (
-    <section className={styles.screen} aria-labelledby="prepare-title" data-mode={mode}>
+    <section
+      className={styles.screen}
+      aria-labelledby="prepare-title"
+      data-mode={mode}
+      data-chooser={mode === 'empty' && !cameraOn ? '' : undefined}
+    >
       <div className={styles.layout}>
         <div className={styles.work}>
           <div
@@ -618,35 +623,37 @@ export function PrepareScreen(_props: { params?: Record<string, string> }) {
           ) : null}
         </div>
 
-        <aside className={styles.panel} aria-labelledby="prepare-title">
-          <div className={styles.titleRow}>
-            <h1 id="prepare-title" className={styles.title}>
-              Prepare
-            </h1>
-            <GuideLink section="prepare" />
-          </div>
-          {mode === 'empty' ? <EmptyPanel /> : null}
-          {mode === 'clip' ? (
-            <SetupPanel
-              onFiles={onFiles}
-              onExtract={extract}
-              onCancel={cancel}
-              onDrawBox={drawBox}
-              onStartHere={startHere}
-              onEndHere={endHere}
-              playerReady={player.ready}
-            />
-          ) : null}
-          {mode === 'signature' ? (
-            <SignaturePanel
-              onSave={(thenOpen) => void save(thenOpen)}
-              onOpenInStudio={openInStudio}
-              onExtractAgain={extractAgain}
-              saving={saving}
-              saveError={saveError}
-            />
-          ) : null}
-        </aside>
+        {mode === 'empty' && !cameraOn ? null : (
+          <aside className={styles.panel} aria-labelledby="prepare-title">
+            <div className={styles.titleRow}>
+              <h1 id="prepare-title" className={styles.title}>
+                Prepare
+              </h1>
+              <GuideLink section="prepare" />
+            </div>
+            {mode === 'empty' ? <EmptyPanel /> : null}
+            {mode === 'clip' ? (
+              <SetupPanel
+                onFiles={onFiles}
+                onExtract={extract}
+                onCancel={cancel}
+                onDrawBox={drawBox}
+                onStartHere={startHere}
+                onEndHere={endHere}
+                playerReady={player.ready}
+              />
+            ) : null}
+            {mode === 'signature' ? (
+              <SignaturePanel
+                onSave={(thenOpen) => void save(thenOpen)}
+                onOpenInStudio={openInStudio}
+                onExtractAgain={extractAgain}
+                saving={saving}
+                saveError={saveError}
+              />
+            ) : null}
+          </aside>
+        )}
       </div>
     </section>
   );

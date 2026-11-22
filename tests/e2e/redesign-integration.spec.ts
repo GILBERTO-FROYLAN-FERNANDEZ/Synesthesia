@@ -40,6 +40,21 @@ test('Prepare live motion opens the redesigned Perform setup', async ({ page }) 
   await expect(page.getByRole('heading', { name: 'Camera Setup' })).toBeVisible();
 });
 
+test('Prepare source chooser keeps three actions and a compact Guide link', async ({ page }) => {
+  await page.goto('./#/prepare');
+  await expect(page.getByRole('heading', { name: 'Choose a movement source' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Prepare', level: 1 })).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'Guide: Making a signature (Prepare)' }),
+  ).toBeVisible();
+  await expect(page.getByRole('complementary', { name: 'Prepare' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Choose a clip…' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Use Webcam' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Start Live Motion' })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole('button', { name: 'Start Live Motion' })).toBeVisible();
+});
+
 test('Studio shows its actual first frame and explains unavailable source views', async ({
   page,
 }) => {
