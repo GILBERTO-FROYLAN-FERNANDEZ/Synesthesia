@@ -14,6 +14,7 @@ import { defsOf, isSoloed, lockedIds, type Field } from '../../studio/edits';
 import { linkedField, linkedValues, propertySections } from '../../studio/sections';
 import type { SoundProblem } from '../../studio/runtime';
 import { SegmentedControl } from '../../ui/SegmentedControl';
+import { MotionResponsePicker, mappingForResponse, responseAvailable, responseForMapping } from '../../ui/MotionResponsePicker';
 import { Slider, type SliderPhase } from '../../ui/Slider';
 import { Toggle } from '../../ui/Toggle';
 import { CompositionSeed } from './CompositionSeed';
@@ -247,7 +248,10 @@ export function StudioPanel() {
   const store = useStudioStore.getState;
   const materials =
     tab === 'visual'
-      ? visualMetas().filter((material) => material.id !== SIGNATURE_VIEW_ID)
+      ? visualMetas(composition.visual.mapping).filter((material) =>
+          material.id !== SIGNATURE_VIEW_ID &&
+          responseAvailable(responseForMapping(composition.visual.mapping), material.id),
+        )
       : tab === 'sound'
         ? soundMetas()
         : [];
@@ -320,7 +324,14 @@ export function StudioPanel() {
                 <span>{tab === 'visual' ? 'Visual Material' : 'Sound Material'}</span>
                 <strong>{selectedMaterial?.name}</strong>
               </div>
-              <div className={styles.materialGrid}>
+              {composition.visual.materialId === SIGNATURE_VIEW_ID ? (
+                <div className={styles.fieldNote}>
+                  <p>Motion map shows tracking data. Choose a visual material to shape the result.</p>
+                  <button type="button" onClick={() => store().setVisualMapping('displacement')}>
+                    Use Water visual
+                  </button>
+                </div>
+              ) : <div className={styles.materialGrid}>
                 {materials.map((material) => (
                   <MaterialCard
                     key={material.id}
@@ -330,7 +341,14 @@ export function StudioPanel() {
                     onSelect={() => store().setMaterial(field, material.id)}
                   />
                 ))}
-              </div>
+              </div>}
+              {tab === 'visual' && composition.visual.materialId !== SIGNATURE_VIEW_ID ? (
+                <MotionResponsePicker
+                  value={composition.visual.mapping}
+                  materialId={composition.visual.materialId}
+                  onChange={(response) => store().setVisualMapping(mappingForResponse(response))}
+                />
+              ) : null}
               <div className={styles.materialActions}>
                 <Toggle
                   label="Linked"

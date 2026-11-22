@@ -1,9 +1,10 @@
 import type { TimestampedSettingChange } from '../../engine/composition';
-import type { PropertyValues } from '../../materials/types';
+import type { PropertyValues, VisualMapping } from '../../materials/types';
 import type { KineticSignature } from '../../signature/types';
 
 export interface PerformanceSettings {
   visualId: string;
+  visualMapping: VisualMapping;
   soundId: string;
   visualProperties: PropertyValues;
   soundProperties: PropertyValues;

@@ -64,6 +64,6 @@ export const BUBBLES_PROPERTIES: PropertyDef[] = [
 /** Look up one of the bubbles' property definitions by id. */
 export function bubblesProperty(id: string): PropertyDef {
   const def = BUBBLES_PROPERTIES.find((p) => p.id === id);
-  if (!def) throw new Error(`Descending bubbles has no property "${id}".`);
+  if (!def) throw new Error(`Bubbles has no property "${id}".`);
   return def;
 }

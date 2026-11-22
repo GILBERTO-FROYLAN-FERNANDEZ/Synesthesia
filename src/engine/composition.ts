@@ -3,7 +3,7 @@
  * A composition = signature reference + one visual material + one sound material +
  * property values + seed + render settings + notes.
  */
-import type { PropertyValues } from '../materials/types';
+import type { PropertyValues, VisualMapping } from '../materials/types';
 import type { LoopMode } from '../signature/types';
 
 export interface TimelineSettings {
@@ -16,6 +16,8 @@ export interface TimelineSettings {
 }
 
 export interface MaterialSettings {
+  /** Visual behavior, independent of the chosen medium; absent in older compositions. */
+  mapping?: VisualMapping;
   materialId: string;
   materialVersion: number;
   properties: PropertyValues;
@@ -38,6 +40,7 @@ export type RecordingStatus = 'not-recorded' | 'generated-only' | 'generated-and
 export interface TimestampedSettingChange {
   atSec: number;
   visualMaterialId: string;
+  visualMapping?: VisualMapping;
   soundMaterialId: string;
   intensity: number;
   volume: number;

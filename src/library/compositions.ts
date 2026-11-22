@@ -44,7 +44,14 @@ export async function saveComposition(c: Composition): Promise<Composition> {
 }
 
 export async function getComposition(id: string): Promise<Composition | undefined> {
-  return (await openLibraryDb()).get('compositions', id);
+  const composition = await (await openLibraryDb()).get('compositions', id);
+  // Normalize retired prototype mediums/scenes on opening as well as file import.
+  return composition &&
+    ['displacement', 'warp-bubbles', 'warp-grass', 'warp-colors'].includes(
+      composition.visual.materialId,
+    )
+    ? validateComposition(composition)
+    : composition;
 }
 
 /** Every composition, most recently changed first. */

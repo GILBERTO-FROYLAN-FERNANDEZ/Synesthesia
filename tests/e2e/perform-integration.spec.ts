@@ -24,6 +24,10 @@ test('live camera recording becomes an editable Library composition', async ({ p
   await expect(page.getByRole('button', { name: /Start Performance/ })).toBeEnabled();
   await page.getByRole('button', { name: /Start Performance/ }).click();
   await expect(page.getByText(/(?:Body|Camera motion) tracking live/)).toBeVisible({ timeout: 30_000 });
+  await page.getByRole('button', { name: /^Trail Leave a path/ }).click();
+  await expect(page.getByRole('button', { name: /^Trail Leave a path/ })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: /^Ripple Make waves/ }).click();
+  await expect(page.getByRole('button', { name: /^Ripple Make waves/ })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('radiogroup', { name: 'Material properties' }).getByRole('radio', { name: 'Sound' }).click();
   const viscosity = page.getByRole('group', { name: 'Water sound properties' })
     .getByRole('slider', { name: 'Viscosity' });
@@ -55,6 +59,12 @@ test('live camera recording becomes an editable Library composition', async ({ p
   await page.getByRole('button', { name: 'Back to Library' }).click();
   await compositions.getByRole('button', { name: /^Open / }).click();
   await expect(page.getByTestId('save-state')).toHaveText('Saved');
+  await expect(page.getByRole('button', { name: /^Ripple Make waves/ })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: /^Push Move what's there/ }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByTestId('save-state')).toHaveText('Saved');
+  await page.reload();
+  await expect(page.getByRole('button', { name: /^Push Move what's there/ })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('tab', { name: 'Sound' }).click();
   await expect(page.getByRole('slider', { name: 'Viscosity', exact: true }))
     .toHaveAttribute('aria-valuenow', String(savedViscosity));

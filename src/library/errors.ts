@@ -22,7 +22,8 @@ export const MESSAGES = {
     "This is a different signature from the one the composition needs, so it wasn't imported.",
   quota:
     "There isn't enough storage space left. Free up some space on this computer, then try again.",
-  versionChanged: 'Your library was updated in another window. Reload this page to keep working.',
+  versionChanged:
+    'This library uses a newer or incompatible format. Open it with the version of Synesthesia that last updated it; reloading this version will not fix it. Your saved data has not been deleted.',
   unavailable:
     "Your library couldn't be opened. Close other Synesthesia windows and reload this page. If that doesn't help, the Diagnostics page can show what's wrong.",
   generic: 'Something went wrong. Try again; if it keeps happening, the Diagnostics page can help.',

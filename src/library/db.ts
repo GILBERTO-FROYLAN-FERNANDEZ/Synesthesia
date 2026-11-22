@@ -13,7 +13,7 @@
  *
  * A schema change bumps DB_VERSION and adds an `if (oldVersion < n)` step to `upgrade`.
  */
-import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import { openDB, unwrap, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Composition } from '../engine/composition';
 import type { KineticSignature } from '../signature/types';
 import { LibraryError, MESSAGES, errorDetail } from './errors';
@@ -52,8 +52,8 @@ export const STORE_NAMES = [
 
 let dbPromise: Promise<LibraryDatabase> | null = null;
 
-function open(): Promise<LibraryDatabase> {
-  return openDB<LibrarySchema>(DB_NAME, DB_VERSION, {
+function openAtVersion(version: number | undefined): Promise<LibraryDatabase> {
+  return openDB<LibrarySchema>(DB_NAME, version, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) {
         db.createObjectStore('signatures', { keyPath: 'id' });
@@ -83,11 +83,55 @@ function open(): Promise<LibraryDatabase> {
   });
 }
 
+/** Version 2 only adds mediaAssets; its existing stores keep the version-1 contract.
+ * Do not assume arbitrary future schemas are backward compatible or downgrade them.
+ */
+async function open(): Promise<LibraryDatabase> {
+  try {
+    return await openAtVersion(DB_VERSION);
+  } catch (err) {
+    if (!(err instanceof DOMException) || err.name !== 'VersionError') throw err;
+  }
+  const db = await openAtVersion(undefined);
+  try {
+    if (db.version !== 2 || STORE_NAMES.some((name) => !db.objectStoreNames.contains(name))) {
+      throw new Error(`Unsupported library schema version ${db.version}`);
+    }
+    const tx = db.transaction([...STORE_NAMES], 'readonly');
+    for (const name of STORE_NAMES) {
+      const store = tx.objectStore(name);
+      const expected = name === 'settings' || name === 'workingState' ? null : 'id';
+      if (store.keyPath !== expected || store.autoIncrement) {
+        throw new Error(`Incompatible library store: ${name}`);
+      }
+    }
+    const indexes = [
+      ['signatureMeta', 'byContentHash', 'contentHash'],
+      ['compositions', 'bySignatureId', 'signature.id'],
+      ['compositions', 'bySignatureHash', 'signature.contentHash'],
+    ] as const;
+    for (const [name, indexName, keyPath] of indexes) {
+      const store = unwrap(tx.objectStore(name));
+      if (!store.indexNames.contains(indexName)) throw new Error(`Missing index: ${indexName}`);
+      const index = store.index(indexName);
+      if (index.keyPath !== keyPath || index.unique || index.multiEntry) {
+        throw new Error(`Incompatible library index: ${indexName}`);
+      }
+    }
+    await tx.done;
+    return db;
+  } catch (err) {
+    db.close();
+    throw new LibraryError(MESSAGES.versionChanged, errorDetail(err));
+  }
+}
+
 /** The shared database connection (opened on first use). */
 export function openLibraryDb(): Promise<LibraryDatabase> {
   if (!dbPromise) {
     dbPromise = open().catch((err: unknown) => {
       dbPromise = null;
+      if (err instanceof LibraryError) throw err;
       if (err instanceof DOMException && err.name === 'VersionError') {
         throw new LibraryError(MESSAGES.versionChanged, errorDetail(err));
       }

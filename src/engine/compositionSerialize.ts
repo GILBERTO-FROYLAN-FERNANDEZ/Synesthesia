@@ -27,7 +27,7 @@ import {
   type JsonObject,
   type Migration,
 } from '../signature/serialize';
-import type { PropertyValues } from '../materials/types';
+import { VISUAL_MAPPINGS, type PropertyValues } from '../materials/types';
 import {
   COMPOSITION_FORMAT,
   COMPOSITION_VERSION,
@@ -96,10 +96,15 @@ function readProperties(value: unknown, path: string, fail: Fail): PropertyValue
 
 function readMaterial(value: unknown, path: string, fail: Fail): MaterialSettings {
   const o = readObject(value, path, fail);
+  const mapping =
+    path === 'visual' && o.mapping !== undefined
+      ? readChoice(o, 'mapping', path, fail, [...VISUAL_MAPPINGS, 'warping'] as const)
+      : undefined;
   return {
     materialId: readString(o, 'materialId', path, fail, { nonEmpty: true, maxLength: 100 }),
     materialVersion: readNumber(o, 'materialVersion', path, fail, { integer: true, min: 0 }),
     properties: readProperties(o.properties, `${path}.properties`, fail),
+    ...(mapping ? { mapping: mapping === 'warping' ? ('displacement' as const) : mapping } : {}),
   };
 }
 
@@ -149,6 +154,8 @@ function readSettingChanges(value: unknown, fail: Fail): TimestampedSettingChang
     };
     if (o.visualProperties !== undefined)
       change.visualProperties = readProperties(o.visualProperties, `${path}.visualProperties`, fail);
+    if (o.visualMapping !== undefined)
+      change.visualMapping = readChoice(o, 'visualMapping', path, fail, VISUAL_MAPPINGS);
     if (o.soundProperties !== undefined)
       change.soundProperties = readProperties(o.soundProperties, `${path}.soundProperties`, fail);
     if (o.bodyTrackingEnabled !== undefined)
@@ -311,6 +318,31 @@ export function validateComposition(raw: unknown): Composition {
       pattern: THUMBNAIL_PATTERN,
     });
   }
+  if (composition.visual.materialId === 'displacement') {
+    composition.visual.materialId = 'water';
+    composition.visual.mapping = 'displacement';
+  }
+  if (composition.visual.materialId === 'warp-grass') {
+    composition.visual.materialId = 'grass';
+    composition.visual.mapping = 'displacement';
+  }
+  if (composition.visual.materialId === 'warp-colors') {
+    composition.visual.materialId = 'signature';
+    composition.visual.mapping = 'signature';
+    composition.visual.materialVersion = 1;
+    composition.visual.properties = { showReadout: 0 };
+  }
+  if (composition.visual.materialId === 'grass') {
+    composition.visual.mapping =
+      composition.visual.mapping === 'lines' ||
+      composition.visual.mapping === 'sampled-displacement'
+        ? 'sampled-displacement'
+        : 'displacement';
+  }
+  if (composition.visual.materialId === 'warp-bubbles') {
+    composition.visual.materialId = 'bubbles';
+    composition.visual.mapping = 'displacement';
+  }
   return composition;
 }
 
@@ -360,6 +392,7 @@ export function serializeComposition(c: Composition): string {
     },
     linked: c.linked,
     visual: {
+      ...(c.visual.mapping ? { mapping: c.visual.mapping } : {}),
       materialId: c.visual.materialId,
       materialVersion: c.visual.materialVersion,
       properties: { ...c.visual.properties },

@@ -393,10 +393,40 @@ uniform vec2 uVelocityTexel;
 uniform vec2 uSourceTexel;
 uniform float uDt;
 uniform float uDecay;
+#ifdef MEDIUM_RENEWAL
+uniform sampler2D uRestMedium;
+uniform float uMediumKeep;
+uniform vec2 uMediumAspect;
+#ifdef MEDIUM_SMOKE
+uniform float uSmokeTime;
+#endif
+#endif
 out vec4 fragColor;
 void main () {
-  vec2 coord = vUv - uDt * sampleLinear(uVelocity, vUv, uVelocityTexel).xy * uVelocityTexel;
-  fragColor = sampleLinear(uSource, coord, uSourceTexel) * uDecay;
+  vec2 velocityUv = sampleLinear(uVelocity, vUv, uVelocityTexel).xy * uVelocityTexel;
+  vec2 coord = vUv - uDt * velocityUv;
+  vec4 carried = sampleLinear(uSource, coord, uSourceTexel) * uDecay;
+#ifdef MEDIUM_SMOKE
+  // Different depths travel at different rates, so smoke separates instead of folding
+  // as one continuous sheet. All three layers remain driven by the same hand movement.
+  carried.r = sampleLinear(uSource, vUv - uDt * velocityUv * 1.15, uSourceTexel).r * uDecay;
+  carried.b = sampleLinear(uSource, vUv - uDt * velocityUv * 0.65, uSourceTexel).b * uDecay;
+#endif
+#ifdef MEDIUM_RENEWAL
+  // Maintain material detail as stirring and interpolation stretch it away. The
+  // exponential blend is continuous in simulation time and never resets velocity.
+#ifdef MEDIUM_SMOKE
+  // Incoming smoke drifts upward rather than restoring the exact same anchored folds.
+  vec2 freshUv = fract(vUv - vec2(0.008, 0.025) * uSmokeTime / uMediumAspect);
+  vec4 rest = sampleLinear(uRestMedium, freshUv, uSourceTexel);
+#else
+  vec4 rest = sampleLinear(uRestMedium, vUv, uSourceTexel);
+#endif
+  float speed = length(velocityUv * uMediumAspect);
+  float keep = uMediumKeep * exp(-uDt * min(12.0, speed * 6.0));
+  carried = mix(rest, carried, keep);
+#endif
+  fragColor = carried;
 }
 `;
 

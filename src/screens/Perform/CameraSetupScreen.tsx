@@ -167,6 +167,7 @@ export function CameraSetupScreen() {
     await stopSound();
     beginPerformance(stream, camera.cameraName, {
       visualId,
+      visualMapping: 'displacement',
       soundId,
       visualProperties: baselineValues(visualMaterials.find(({ meta }) => meta.id === visualId)?.meta.properties ?? []),
       soundProperties: baselineValues(getSoundMaterial(soundId)?.meta.properties ?? []),

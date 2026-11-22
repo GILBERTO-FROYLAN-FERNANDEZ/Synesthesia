@@ -89,7 +89,7 @@ export function SessionReviewScreen() {
       const composition: Composition = {
         ...base,
         linked: false,
-        visual: { ...base.visual, properties: { ...session.settings.visualProperties } },
+        visual: { ...base.visual, mapping: session.settings.visualMapping, properties: { ...session.settings.visualProperties } },
         sound: { ...base.sound, properties: { ...session.settings.soundProperties } },
         thumbnail: session.thumbnail,
         timeline: { ...base.timeline, signatureStrength: session.settings.intensity },

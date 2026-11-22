@@ -163,7 +163,13 @@ vec2 curlNoise (vec2 p) {
 
 void main () {
   vec2 v = texture(uVelocity, vUv).xy;
+#ifdef EXISTING_SMOKE
+  // Existing smoke carries a small buoyant/eddy response without generating new smoke.
+  vec3 density = texture(uHeat, vUv).rgb;
+  float heat = dot(density, vec3(0.333333)) * 0.18;
+#else
   float heat = texture(uHeat, vUv).x;
+#endif
   if (heat > 1e-5) {
     v.y += uLift * heat;
     if (uTurbulence > 0.0) {

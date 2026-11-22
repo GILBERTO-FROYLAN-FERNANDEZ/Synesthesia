@@ -43,7 +43,19 @@ export interface MaterialMeta {
 
 export type Quality = 'draft' | 'standard' | 'high';
 
+/** Serialized renderer presets; Movement exposes these as two independent controls. */
+export const VISUAL_MAPPINGS = [
+  'signature',
+  'wake',
+  'displacement',
+  'lines',
+  'sampled-displacement',
+  'ripples',
+] as const;
+export type VisualMapping = (typeof VISUAL_MAPPINGS)[number];
+
 export interface VisualContext {
+  mapping?: VisualMapping;
   gl: WebGL2RenderingContext;
   /** Drawing-buffer size in pixels. */
   width: number;

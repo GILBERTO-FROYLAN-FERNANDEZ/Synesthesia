@@ -1,0 +1,26 @@
+.group{display:grid;gap:9px}
+.heading{display:grid;gap:2px;color:var(--color-pearl)}
+.heading strong{font-size:var(--font-size-sm)}
+.heading span{color:var(--color-mist);font-size:11px}
+.options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.option{display:grid;align-content:start;gap:5px;min-width:0;padding:6px;text-align:left;border:1px solid color-mix(in srgb,var(--color-water) 20%,transparent);border-radius:var(--radius-md);background:#081923;color:var(--color-pearl);font:inherit;cursor:pointer;transition:border-color 160ms,background 160ms,transform 160ms}
+.option:hover:not(:disabled){border-color:var(--color-water);transform:translateY(-2px)}
+.selected{border-color:var(--color-honey);background:color-mix(in srgb,var(--color-honey) 10%,#081923)}
+.option:disabled{opacity:.42;cursor:not-allowed}
+.option strong{font-size:12px}
+.option small{min-height:28px;color:var(--color-mist);font-size:11px;line-height:1.25}
+.preview{position:relative;display:block;overflow:hidden;height:40px;border-radius:5px;background:radial-gradient(ellipse at 45% 90%,#123a4a,#06131c 76%)}
+.preview i{position:absolute;display:block;border:2px solid #6ed2e8;opacity:.8}
+.push .preview i{width:33px;height:33px;top:8px;left:calc(50% - 16px);border-radius:50%;animation:push 2.5s ease-in-out infinite}
+.push .preview i:nth-child(2){animation-delay:-.65s;opacity:.35}
+.push .preview i:nth-child(3){animation-delay:-1.3s;opacity:.2}
+.trail .preview i{width:65px;height:25px;top:18px;left:-8px;border-color:transparent;border-top-color:#6ed2e8;border-radius:50%;transform:rotate(-15deg);animation:trail 3s linear infinite}
+.trail .preview i:nth-child(2){top:25px;animation-delay:-.5s;opacity:.5}
+.trail .preview i:nth-child(3){top:32px;animation-delay:-1s;opacity:.25}
+.ripple .preview i{width:12px;height:12px;top:14px;left:calc(50% - 6px);border-radius:50%;animation:ripple 2.4s ease-out infinite}
+.ripple .preview i:nth-child(2){animation-delay:-.8s}
+.ripple .preview i:nth-child(3){animation-delay:-1.6s}
+@keyframes push{50%{transform:translateX(9px) scale(1.2)}}
+@keyframes trail{to{transform:translateX(55px) rotate(-15deg)}}
+@keyframes ripple{to{transform:scale(5);opacity:0}}
+@media(prefers-reduced-motion:reduce){.option,.preview i{animation:none;transition:none}}

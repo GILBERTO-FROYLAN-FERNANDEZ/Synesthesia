@@ -22,12 +22,14 @@ uniform sampler2D uPalette;  // direction colors, indexed by turns (0 = right, 1
 uniform vec3 uRestColor;
 uniform float uExposure;
 uniform float uSaturation;
+uniform float uTintStrength;
 uniform float uGlowGain;     // extra light at full glow
 ${HUE_GLSL}
 out vec2 vLocal;
 out float vRadiusPx;
 out vec3 vRim;
 out float vHighlight;
+flat out float vMist;
 
 void main () {
   int id = gl_VertexID;
@@ -52,13 +54,14 @@ void main () {
   vec3 tint = uRestColor;
   if (glow > 1e-5) {
     float turn = atan(g.y, g.x) * 0.15915494309;
-    tint = mix(uRestColor, textureLod(uPalette, vec2(turn, 0.5), 0.0).rgb, amount);
+    tint = mix(uRestColor, textureLod(uPalette, vec2(turn, 0.5), 0.0).rgb, amount * uTintStrength);
   }
   // Hue turns the rim's color; the highlight stays white.
   tint = turnHue(tint);
   float luma = dot(tint, vec3(0.2126, 0.7152, 0.0722));
   tint = max(mix(vec3(luma), tint, uSaturation), 0.0);
-  float light = aLight.x * aLight.y * uExposure;
+  vMist = aLight.x < 0.0 ? 1.0 : 0.0;
+  float light = abs(aLight.x) * aLight.y * uExposure;
   vRim = tint * light * (1.0 + uGlowGain * amount);
   vHighlight = light * (1.0 + 0.5 * amount);
 }
@@ -70,10 +73,18 @@ in vec2 vLocal;
 in float vRadiusPx;
 in vec3 vRim;
 in float vHighlight;
+flat in float vMist;
+uniform float uSoftBlend;
 out vec4 fragColor;
 
 void main () {
   float r = length(vLocal);
+  if (vMist > 0.5) {
+    float soft = exp(-r * r * 4.0) * (1.0 - smoothstep(0.7, 1.0, r));
+    float alpha = clamp(vHighlight * soft, 0.0, 0.65);
+    fragColor = vec4(vec3(0.65, 0.76, 0.82) * alpha, alpha);
+    return;
+  }
   // Coverage of the bubble's outer edge, over one device pixel.
   float edge = clamp((1.0 - r) * vRadiusPx + 0.5, 0.0, 1.0);
   if (edge <= 0.0) discard;
@@ -97,6 +108,13 @@ void main () {
   float detail = smoothstep(1.2, 3.5, vRadiusPx);
   vec3 dotColor = (vRim + 0.25 * vec3(vHighlight)) * (0.6 * exp(-2.5 * r * r));
   color = mix(dotColor, color, detail);
-  fragColor = vec4(color * edge, 1.0);
+  if (uSoftBlend > 0.0) {
+    // Premultiplied coverage keeps overlapping bubbles from adding into a neon flare.
+    color = vec3(1.0) - exp(-max(color, 0.0));
+    float alpha = max(color.r, max(color.g, color.b)) * edge;
+    fragColor = vec4(color * edge, alpha);
+  } else {
+    fragColor = vec4(color * edge, 1.0);
+  }
 }
 `;

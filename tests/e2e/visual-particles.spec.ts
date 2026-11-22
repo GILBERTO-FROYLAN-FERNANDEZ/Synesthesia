@@ -210,8 +210,10 @@ test.describe('particle and strand materials', () => {
       // (over what is left of the close), so the wake turns clearly greener.
       const closing = await at(54);
       const opening = await at(84);
-      expect(closing).toBeLessThan(0.7);
-      expect(opening).toBeGreaterThan(closing * 1.3);
+      // Natural bubble rims stay pearl-colored, with a subtle directional tint rather
+      // than the old saturated glow. Filaments retain their stronger color response.
+      expect(closing).toBeLessThan(materialId === 'bubbles' ? 1 : 0.7);
+      expect(opening).toBeGreaterThan(closing * (materialId === 'bubbles' ? 1.05 : 1.3));
       expect(problems).toEqual([]);
     });
   }

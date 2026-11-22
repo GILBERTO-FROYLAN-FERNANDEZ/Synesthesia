@@ -39,11 +39,11 @@ export class VisualRunner {
     return this.stepIndex;
   }
 
-  /** Return the material to its seeded initial state at t = 0. */
-  reset(seed: number = this.seed): void {
+  /** Return to the seeded initial state, optionally starting at the live playhead. */
+  reset(seed: number = this.seed, t = 0): void {
     this.seed = seed;
     this.material.reset(seed);
-    this.stepIndex = 0;
+    this.stepIndex = stepsForTime(t);
   }
 
   /** Steps still needed to reach composition time t (0 if already there or past). */

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { navigate } from '../../app/router';
 import type { TimestampedSettingChange } from '../../engine/composition';
+import { completeValues } from '../../engine/propertyModel';
 import { baselineValues } from '../../materials/properties';
+import { visualMappingProperties } from '../../materials/visual/lines/properties';
 import {
   SIGNATURE_VIEW_ID,
   getSoundMaterial,
@@ -11,6 +13,7 @@ import {
 } from '../../materials/registry';
 import { Button } from '../../ui/Button';
 import { MaterialPicker } from '../../ui/MaterialPicker';
+import { MotionResponsePicker, mappingForResponse, responseAvailable, responseForMapping, type MotionResponse } from '../../ui/MotionResponsePicker';
 import { MOVEMENT_ZONE_NAMES, MovementZoneOverlay } from '../../ui/MovementZoneOverlay';
 import { PropertyPanel } from '../../ui/PropertyPanel';
 import { SegmentedControl } from '../../ui/SegmentedControl';
@@ -48,6 +51,7 @@ export function PerformanceScreen() {
     const soundId = initial?.soundId ?? 'water';
     return {
       visualId,
+      visualMapping: initial?.visualMapping ?? 'displacement',
       soundId,
       visualProperties: initial?.visualProperties ?? baselineValues(getVisualMaterial(visualId)?.meta.properties ?? []),
       soundProperties: initial?.soundProperties ?? baselineValues(getSoundMaterial(soundId)?.meta.properties ?? []),
@@ -131,7 +135,8 @@ export function PerformanceScreen() {
         if (visual.fallbackFrom) {
           change({
             visualId: visual.id,
-            visualProperties: baselineValues(getVisualMaterial(visual.id)?.meta.properties ?? []),
+            visualMapping: visual.mapping,
+            visualProperties: baselineValues(visualMappingProperties(getVisualMaterial(visual.id)?.meta.properties ?? [], visual.mapping)),
           });
           setVisualNotice(
             `${getVisualMaterial(visual.fallbackFrom)?.meta.name ?? 'The selected visual'} cannot render on this graphics card. Showing ${getVisualMaterial(visual.id)?.meta.name ?? visual.id} instead.`,
@@ -193,6 +198,7 @@ export function PerformanceScreen() {
     changesRef.current.push({
       atSec: (performance.now() - startedRef.current) / 1000,
       visualMaterialId: next.visualId,
+      visualMapping: next.visualMapping,
       soundMaterialId: next.soundId,
       intensity: next.intensity,
       volume: next.volume,
@@ -206,20 +212,55 @@ export function PerformanceScreen() {
 
   const selectVisual = async (visualId: string) => {
     try {
-      const visual = await runtimeRef.current?.setVisual(visualId);
+      const current = settingsRef.current;
+      const mapping = responseAvailable(responseForMapping(current.visualMapping), visualId)
+        ? current.visualMapping : 'displacement';
+      const props = baselineValues(visualMappingProperties(getVisualMaterial(visualId)?.meta.properties ?? [], mapping));
+      const visual = await runtimeRef.current?.setVisual(visualId, props, mapping);
       if (!visual) return;
       change({
         visualId: visual.id,
-        visualProperties: baselineValues(getVisualMaterial(visual.id)?.meta.properties ?? []),
+        visualMapping: visual.mapping,
+        visualProperties: visual.fallbackFrom
+          ? baselineValues(visualMappingProperties(getVisualMaterial(visual.id)?.meta.properties ?? [], visual.mapping))
+          : props,
       });
       setError(null);
       setVisualNotice(
         visual.fallbackFrom
           ? `${getVisualMaterial(visual.fallbackFrom)?.meta.name ?? 'The selected visual'} cannot render on this graphics card. Showing ${getVisualMaterial(visual.id)?.meta.name ?? visual.id} instead.`
+          : mapping !== current.visualMapping
+            ? `${getVisualMaterial(visual.id)?.meta.name ?? 'This material'} does not support ${responseForMapping(current.visualMapping)}. Switched to Push.`
           : null,
       );
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'The visual could not be changed.');
+    }
+  };
+  const selectResponse = async (response: MotionResponse) => {
+    const current = settingsRef.current;
+    if (!responseAvailable(response, current.visualId)) return;
+    const mapping = mappingForResponse(response);
+    const props = completeValues(
+      current.visualProperties,
+      visualMappingProperties(getVisualMaterial(current.visualId)?.meta.properties ?? [], mapping),
+    );
+    try {
+      const visual = await runtimeRef.current?.setVisual(current.visualId, props, mapping);
+      if (!visual) return;
+      change({
+        visualId: visual.id,
+        visualMapping: visual.mapping,
+        visualProperties: visual.fallbackFrom
+          ? baselineValues(visualMappingProperties(getVisualMaterial(visual.id)?.meta.properties ?? [], visual.mapping))
+          : props,
+      });
+      setError(null);
+      setVisualNotice(visual.fallbackFrom
+        ? `${getVisualMaterial(current.visualId)?.meta.name ?? 'This visual'} cannot render here. Showing ${getVisualMaterial(visual.id)?.meta.name ?? visual.id} instead.`
+        : null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'The motion response could not be changed.');
     }
   };
   const selectSound = async (soundId: string) => {
@@ -331,6 +372,10 @@ export function PerformanceScreen() {
     ? getVisualMaterial(settings.visualId)
     : getSoundMaterial(settings.soundId);
   const diagnosticVisual = editingVisual && settings.visualId === SIGNATURE_VIEW_ID;
+  const visualDefs = visualMappingProperties(
+    getVisualMaterial(settings.visualId)?.meta.properties ?? [],
+    settings.visualMapping,
+  );
 
   return (
     <section className={styles.page}>
@@ -472,10 +517,17 @@ export function PerformanceScreen() {
               onChange={(id) => void (editingVisual ? selectVisual(id) : selectSound(id))}
             />
           </div>
+          {editingVisual && !diagnosticVisual ? (
+            <MotionResponsePicker
+              value={settings.visualMapping}
+              materialId={settings.visualId}
+              onChange={(response) => void selectResponse(response)}
+            />
+          ) : null}
           {diagnosticVisual ? <p className={styles.diagnosticNotice}>The graphics card could not render a visual material. This view shows tracked movement directly; choose another visual material above to try it.</p> : <PropertyPanel
             key={`${editingVisual ? 'visual' : 'sound'}:${selectedMaterial?.meta.id ?? ''}`}
             label={`${selectedMaterial?.meta.name ?? 'Material'} ${editingVisual ? 'visual' : 'sound'} properties`}
-            defs={selectedMaterial?.meta.properties ?? []}
+            defs={editingVisual ? visualDefs : selectedMaterial?.meta.properties ?? []}
             values={editingVisual ? settings.visualProperties : settings.soundProperties}
             compact
             onChange={(id, value, phase) => change(

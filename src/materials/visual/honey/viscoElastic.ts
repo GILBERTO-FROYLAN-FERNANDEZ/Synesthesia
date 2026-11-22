@@ -118,6 +118,8 @@ export class ViscoElasticBody {
     gl.uniform2f(p.u('uStep'), 0, spacing * velocity.texelSizeY);
     gl.uniform1fv(p.u('uWeights'), weights);
     gl.uniform1f(p.u('uSpring'), Math.max(0, this.params.springStiffness) * params.dt * short);
+    gl.uniform1i(p.u('uDye'), bindTexture(gl, 2, solver.dye.read.texture));
+    gl.uniform1f(p.u('uGravity'), solver.mapping === 'lines' ? 0.8 * short * params.dt : 0);
     gl.uniform1f(p.u('uMaxSpeed'), Math.max(0, this.params.maxSpeed) * short);
     gl.uniform1i(p.u('uVelocity'), bindTexture(gl, 0, this.scratch.read.texture));
     gl.uniform1i(p.u('uDisplacement'), bindTexture(gl, 1, this.displacement.read.texture));

@@ -4,6 +4,7 @@ import { baselineValues } from '../../materials/properties';
 import { getSoundMaterial, getVisualMaterial } from '../../materials/registry';
 import { FIXED_DT, type PropertyValues, type VisualMaterial } from '../../materials/types';
 import { getVisualContext, releaseVisualContext } from '../../materials/visual/shared/gl';
+import type { VisualMapping } from '../../materials/types';
 import { VELOCITY_FEATURES, type SignatureFrame, type SignatureSampler } from '../../signature/types';
 import type { RecordedPart } from './liveSession';
 import { LiveMotionActivity } from './liveActivity';
@@ -69,6 +70,7 @@ interface RecorderState {
 
 export interface LiveVisualSelection {
   id: string;
+  mapping: VisualMapping;
   fallbackFrom?: string;
 }
 
@@ -109,6 +111,7 @@ export class LivePerformanceRuntime {
   private audible = false;
   private audio: AudioEngine;
   private visual: VisualMaterial | null = null;
+  private visualMapping: VisualMapping = 'displacement';
   private visualProps: PropertyValues = {};
   private intensity = 1;
   private raf = 0;
@@ -166,6 +169,7 @@ export class LivePerformanceRuntime {
 
   async start(options: {
     visualId: string;
+    visualMapping?: VisualMapping;
     soundId: string;
     visualProperties?: PropertyValues;
     soundProperties?: PropertyValues;
@@ -178,7 +182,7 @@ export class LivePerformanceRuntime {
     this.intensity = options.intensity;
     this.setSensitivity(options.sensitivity);
     this.setVolume(options.volume);
-    const visual = await this.setVisual(options.visualId, options.visualProperties);
+    const visual = await this.setVisual(options.visualId, options.visualProperties, options.visualMapping ?? 'displacement');
     if (this.stopped) return visual;
     await this.setSound(options.soundId, options.soundProperties);
     if (this.stopped) return visual;
@@ -189,7 +193,7 @@ export class LivePerformanceRuntime {
     return visual;
   }
 
-  async setVisual(id: string, props?: PropertyValues): Promise<LiveVisualSelection> {
+  async setVisual(id: string, props?: PropertyValues, mapping = this.visualMapping): Promise<LiveVisualSelection> {
     const requested = getVisualMaterial(id);
     if (!requested) throw new Error('That visual material is unavailable.');
     // Fluid materials need floating-point render targets. Bubbles draws with ordinary
@@ -201,6 +205,7 @@ export class LivePerformanceRuntime {
     for (const candidate of candidates) {
       const entry = getVisualMaterial(candidate);
       if (!entry) continue;
+      const candidateMapping: VisualMapping = candidate === 'signature' ? 'signature' : mapping;
       const material = entry.create();
       try {
         await material.init({
@@ -210,22 +215,26 @@ export class LivePerformanceRuntime {
           quality: 'standard',
           seed: 42,
           rng: visualRng(42),
+          mapping: candidateMapping,
         });
         if (this.stopped) {
           material.dispose();
-          return { id: candidate };
+          return { id: candidate, mapping: candidateMapping };
         }
         material.resize(this.canvas.width, this.canvas.height);
         material.reset(visualSeed(42));
         material.draw();
         const previous = this.visual;
         this.visual = material;
+        this.visualMapping = candidateMapping;
         this.visualProps = candidate === id && props
-          ? { ...baselineValues(entry.meta.properties), ...props }
-          : baselineValues(entry.meta.properties);
+          ? { ...baselineValues(material.properties), ...props }
+          : baselineValues(material.properties);
         material.setProperties?.(this.visualProps);
         previous?.dispose();
-        return candidate === id ? { id } : { id: candidate, fallbackFrom: id };
+        return candidate === id
+          ? { id, mapping: candidateMapping }
+          : { id: candidate, mapping: candidateMapping, fallbackFrom: id };
       } catch (caught) {
         material.dispose();
         failure = caught;

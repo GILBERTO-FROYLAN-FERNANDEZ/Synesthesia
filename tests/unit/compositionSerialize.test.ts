@@ -71,6 +71,50 @@ function catchError(fn: () => unknown): FileFormatError {
 }
 
 describe('composition files', () => {
+  it.each([
+    'signature',
+    'wake',
+    'displacement',
+    'lines',
+    'sampled-displacement',
+    'ripples',
+  ] as const)('preserves %s mapping independently of the medium', (mapping) => {
+    const c = makeComposition();
+    c.visual.mapping = mapping;
+    c.visual.properties.size = 0.7;
+    expect(parseComposition(serializeComposition(c)).visual).toEqual(c.visual);
+  });
+
+  it.each([
+    ['warp-grass', 'grass', 'displacement'],
+    ['warp-colors', 'signature', 'signature'],
+  ])('converts retired %s to %s', (oldId, materialId, mapping) => {
+    const c = makeComposition();
+    c.visual.materialId = oldId;
+    (c.visual as { mapping: string }).mapping = 'warping';
+    const result = parseComposition(serializeComposition(c));
+    expect(result.visual.materialId).toBe(materialId);
+    expect(result.visual.mapping).toBe(mapping);
+  });
+
+  it('moves saved Warping bubbles into existing Movement bubbles', () => {
+    const c = makeComposition();
+    c.visual.materialId = 'warp-bubbles';
+    (c.visual as { mapping: string }).mapping = 'warping';
+    const result = parseComposition(serializeComposition(c));
+    expect(result.visual.materialId).toBe('bubbles');
+    expect(result.visual.mapping).toBe('displacement');
+    expect(result.visual.properties).toEqual(c.visual.properties);
+  });
+
+  it('migrates the prototype displacement medium to Water with displacement mapping', () => {
+    const c = makeComposition();
+    c.visual.materialId = 'displacement';
+    const back = parseComposition(serializeComposition(c));
+    expect(back.visual.materialId).toBe('water');
+    expect(back.visual.mapping).toBe('displacement');
+  });
+
   it('round-trip exactly', () => {
     const c = makeComposition();
     const text = serializeComposition(c);
@@ -132,6 +176,7 @@ describe('composition files', () => {
         {
           atSec: 2,
           visualMaterialId: 'water',
+          visualMapping: 'ripples' as const,
           soundMaterialId: 'breath',
           intensity: 1.2,
           volume: 0.7,
