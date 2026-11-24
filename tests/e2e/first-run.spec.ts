@@ -32,20 +32,19 @@ test('the introduction can be skipped and shown again from Settings', async ({ p
   await expect(page.getByRole('dialog', { name: 'Welcome' })).toBeVisible();
 });
 
-test('the dedication shows once, dismisses on a click, and respects the setting', async ({
+test('the opening animation shows once, dismisses on a click, and respects the setting', async ({
   page,
 }) => {
   await page.goto('./?dedication=1#/settings');
   const splash = page.getByTestId('dedication');
   await expect(splash).toBeVisible();
-  await expect(splash.getByText('Made for Freeman')).toBeVisible();
+  await expect(splash.getByText('Synesthesia')).toBeVisible();
+  await expect(splash.getByText('Made for Freeman')).toHaveCount(0);
   await page.mouse.click(10, 10);
   await expect(splash).toBeHidden();
 
   // Turn it off; a new session no longer shows it.
-  await page
-    .getByRole('switch', { name: 'Show the dedication when the instrument opens' })
-    .uncheck();
+  await page.getByRole('switch', { name: 'Show the opening animation' }).uncheck();
   await page.evaluate(() => sessionStorage.clear());
   await page.goto('./?dedication=1#/');
   await expect(page.getByRole('heading', { name: 'Library' })).toBeVisible();

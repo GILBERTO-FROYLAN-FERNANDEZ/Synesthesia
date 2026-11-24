@@ -196,7 +196,7 @@ export function SettingsScreen() {
       <div className={styles.group}>
         <h2>Welcome</h2>
         <Toggle
-          label="Show the dedication when the instrument opens"
+          label="Show the opening animation"
           checked={settings.dedicationSplash}
           onChange={(checked) => void update({ dedicationSplash: checked })}
         />

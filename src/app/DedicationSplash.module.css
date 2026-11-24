@@ -25,12 +25,6 @@
   color: var(--color-pearl);
 }
 
-.dedication {
-  margin: 0;
-  font-size: var(--font-size-md);
-  color: var(--color-mist);
-}
-
 .rings {
   position: relative;
   width: 96px;

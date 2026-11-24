@@ -25,7 +25,7 @@ export interface AppSettings {
   /** Default render size (SPEC 10.1). */
   renderResolution: RenderResolution;
   renderFps: 30 | 60;
-  /** The optional "Made for Freeman" dedication splash (M8). */
+  /** The optional opening animation. The key is retained for saved-settings compatibility. */
   dedicationSplash: boolean;
   onboardingDone: boolean;
   /**

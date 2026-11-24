@@ -24,9 +24,8 @@ function markShown(): void {
 }
 
 /**
- * The dedication (SPEC 6.5, M8): a quiet moment when the instrument opens. It can be turned
- * off in Settings. Any key or click dismisses it; with reduced motion it doesn't fade.
- * The words live here so they're easy to change.
+ * A quiet opening moment for the instrument. It can be turned off in Settings. Any key or
+ * click dismisses it; with reduced motion it doesn't fade.
  */
 export function DedicationSplash() {
   const [visible, setVisible] = useState(false);
@@ -78,7 +77,6 @@ export function DedicationSplash() {
         <span />
       </div>
       <p className={styles.title}>Synesthesia</p>
-      <p className={styles.dedication}>Made for Freeman</p>
     </div>
   );
 }
