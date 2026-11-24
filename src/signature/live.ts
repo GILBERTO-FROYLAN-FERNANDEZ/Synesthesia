@@ -87,7 +87,9 @@ export function trackLiveVideo(
         canvas.width = width;
         canvas.height = height;
       }
+      ctx.setTransform(-1, 0, 0, 1, width, 0); // Flip Camera horizontally to match the user's perspective.
       ctx.drawImage(video, 0, 0, width, height);
+      ctx.resetTransform();
       const gray = new Uint8Array(width * height);
       rgbaToGray(ctx.getImageData(0, 0, width, height).data, gray);
       const frame: LiveFrameRequest = {
