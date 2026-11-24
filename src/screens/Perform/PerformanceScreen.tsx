@@ -1,3 +1,6 @@
+import { useSoundGrid } from '../Studio/SoundGrid/useSoundGrid';
+import { SoundGridPanel } from '../Studio/SoundGrid/SoundGridPanel';
+import { SoundGridCamera } from '../Studio/SoundGrid/SoundGridCamera';
 import { useEffect, useRef, useState } from 'react';
 import { navigate } from '../../app/router';
 import type { TimestampedSettingChange } from '../../engine/composition';
@@ -41,6 +44,7 @@ export function PerformanceScreen() {
   const session = getActivePerformance();
   const videoRef = useRef<HTMLVideoElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  const stagePanelRef = useRef<HTMLDivElement>(null);
   const runtimeRef = useRef<LivePerformanceRuntime | null>(null);
   const changesRef = useRef<TimestampedSettingChange[]>([]);
   const startedRef = useRef(0);
@@ -55,7 +59,7 @@ export function PerformanceScreen() {
       soundId,
       visualProperties: initial?.visualProperties ?? baselineValues(getVisualMaterial(visualId)?.meta.properties ?? []),
       soundProperties: initial?.soundProperties ?? baselineValues(getSoundMaterial(soundId)?.meta.properties ?? []),
-      bodyTrackingEnabled: initial?.bodyTrackingEnabled ?? true,
+      bodyTrackingEnabled: false,
       intensity: initial?.intensity ?? 1,
       volume: initial?.volume ?? 0.7,
       muted: initial?.muted ?? false,
@@ -64,6 +68,12 @@ export function PerformanceScreen() {
     };
   });
   const settingsRef = useRef(settings);
+  const grid = useSoundGrid();
+  const [gridMode, setGridMode] = useState(true);
+  const [runtimeReady, setRuntimeReady] = useState(false);
+  const gridModeRef = useRef(true);
+  const usedGridRef = useRef(false);
+  useEffect(() => { if (grid.sounding) usedGridRef.current = true; }, [grid.sounding]);
   const [elapsed, setElapsed] = useState(0);
   const [recording, setRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -78,6 +88,7 @@ export function PerformanceScreen() {
   const [showMovementZones, setShowMovementZones] = useState(true);
   const [activeRegion, setActiveRegion] = useState<number | null>(null);
   const [cameraAspect, setCameraAspect] = useState('16 / 9');
+  const [cameraDocked, setCameraDocked] = useState(false);
   const [busy, setBusy] = useState(false);
   const soundPreview = useManualSound(settings.volume * 100, settings.muted, 1, settings.soundProperties);
 
@@ -113,13 +124,13 @@ export function PerformanceScreen() {
     let disposed = false;
     let runtime: LivePerformanceRuntime | null = null;
     try {
-      runtime = new LivePerformanceRuntime(video, canvas, session.stream);
+      runtime = new LivePerformanceRuntime(video, canvas, session.stream, grid.engine);
+      runtime.setGridMode(gridModeRef.current);
       runtimeRef.current = runtime;
       runtime.onActivity = setSoundActive;
       runtime.onTrackingState = (state) => {
         setTrackingState(state);
-        setStatus(state.kind === 'body' ? 'Body tracking live' :
-          state.kind === 'loading' ? 'Loading body tracking' : 'Camera motion tracking live');
+        setStatus(state.kind === 'loading' ? 'Starting motion tracking…' : 'Motion tracking live');
       };
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'The live workspace could not start.');
@@ -142,6 +153,7 @@ export function PerformanceScreen() {
             `${getVisualMaterial(visual.fallbackFrom)?.meta.name ?? 'The selected visual'} cannot render on this graphics card. Showing ${getVisualMaterial(visual.id)?.meta.name ?? visual.id} instead.`,
           );
         }
+        setRuntimeReady(true);
         activeRuntime.onMotion = (frame) => {
           setEnergy(Math.min(1, frame.features.energy * 5));
           setActiveRegion(frame.features.energy >= 0.01 ? motionRegion(frame) : null);
@@ -160,6 +172,8 @@ export function PerformanceScreen() {
     }, 100);
     return () => {
       disposed = true;
+      grid.engine.dispose();
+      if (activeRuntime) { activeRuntime.onMotion = null; activeRuntime.tracker.onFrame = null; }
       window.clearInterval(timer);
       cameraTrack?.removeEventListener('ended', onTrackEnded);
       canvas.removeEventListener('webglcontextlost', onContextLost);
@@ -181,6 +195,15 @@ export function PerformanceScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.id]);
 
+  const chooseSoundMode = (index: number) => {
+    const enabled = index === 0;
+    gridModeRef.current = enabled;
+    setGridMode(enabled);
+    if (!enabled) grid.setSounding(false);
+    else void soundPreview.stop();
+    runtimeRef.current?.setGridMode(enabled);
+  };
+
   const change = (patch: Partial<PerformanceSettings>, record = true) => {
     const next = { ...settingsRef.current, ...patch };
     settingsRef.current = next;
@@ -191,7 +214,6 @@ export function PerformanceScreen() {
     if (patch.volume !== undefined) runtime.setVolume(next.volume);
     if (patch.muted !== undefined) runtime.setMuted(next.muted);
     if (patch.sensitivity !== undefined) runtime.setSensitivity(next.sensitivity);
-    if (patch.bodyTrackingEnabled !== undefined) runtime.setBodyTrackingEnabled(next.bodyTrackingEnabled);
     if (patch.visualProperties !== undefined) runtime.setVisualProperties(next.visualProperties);
     if (patch.soundProperties !== undefined) runtime.setSoundProperties(next.soundProperties);
     if (!record) return;
@@ -332,6 +354,8 @@ export function PerformanceScreen() {
       } catch {
         // A missing thumbnail does not invalidate captured movement.
       }
+      grid.setSounding(false);
+      grid.engine.dispose();
       await runtime.stop();
       session.stream.getTracks().forEach((track) => track.stop());
       takeActivePerformance();
@@ -340,7 +364,7 @@ export function PerformanceScreen() {
         name: defaultName,
         recordedAt: session.startedAt,
         duration,
-        settings: settingsRef.current,
+        settings: { ...settingsRef.current, liveSoundSource: gridMode ? 'grid' : 'material', soundGrid: gridMode ? { ...grid.settings } : undefined, usedSoundGrid: usedGridRef.current },
         settingChanges: changesRef.current,
         signature,
         generated: recorded.generated,
@@ -367,6 +391,17 @@ export function PerformanceScreen() {
     );
   }
 
+  const soundEnabled = !settings.muted && (!gridMode || grid.sounding);
+  const toggleSound = () => {
+    if (soundEnabled) {
+      change({ muted: true });
+      if (gridMode) grid.setSounding(false);
+      else void soundPreview.stop();
+    } else {
+      change({ muted: false });
+      if (gridMode) grid.setSounding(true);
+    }
+  };
   const editingVisual = inspectorTab === 0;
   const selectedMaterial = editingVisual
     ? getVisualMaterial(settings.visualId)
@@ -396,42 +431,33 @@ export function PerformanceScreen() {
       <div className={`${styles.workspace} ${inspectorOpen ? '' : styles.inspectorClosed}`}>
         <aside className={styles.side}>
           <div className={styles.sourceHeading}>
-            <span className={styles.eyebrow}>Movement source</span>
-            <h2>Live camera</h2>
-          </div>
-          <div className={styles.camera} style={{ aspectRatio: cameraAspect }}>
-            <video
-              ref={videoRef}
-              autoPlay
-              muted
-              playsInline
-              onLoadedMetadata={(event) => {
-                const { videoWidth, videoHeight } = event.currentTarget;
-                if (videoWidth && videoHeight) setCameraAspect(`${videoWidth} / ${videoHeight}`);
-              }}
-            />
-            {showMovementZones ? <MovementZoneOverlay activeRegion={activeRegion} /> : null}
-            <span className={styles.cameraName}>{session.cameraName || 'Active camera'}</span>
+            <span className={styles.eyebrow}>Movement &amp; sound</span>
+            <h2>Performance setup</h2>
           </div>
           <div className={styles.tracking}>
             <strong>Movement</strong>
             <div><span style={{ width: `${energy * 100}%` }} /></div>
-            <small className={styles.trackingLine} title={trackingState.kind === 'body' ? 'Body-segmented optical flow is active.' :
-              trackingState.kind === 'loading' ? 'The body model is loading. Camera motion tracking is active meanwhile.' :
-                trackingState.kind === 'camera' ? 'Body tracking is off. Camera motion tracking is active.' :
-                  'The body model is unavailable. Camera motion tracking is active.'}>
-              <span>{trackingState.kind === 'body' ? 'Body tracking' : trackingState.kind === 'loading' ? 'Loading body…' : trackingState.kind === 'camera' ? 'Camera motion' : 'Camera fallback'}</span>
+            <small className={styles.trackingLine} title="Movement across the full camera image drives the visual and sound.">
+              <span>{trackingState.kind === 'loading' ? 'Starting motion tracking…' : 'Motion Tracking'}</span>
               <span>{Math.round(energy * 100)}%</span>
             </small>
-            {showMovementZones ? <small className={styles.trackingLine} role="status"><span>{activeRegion === null
+            {!gridMode && showMovementZones ? <small className={styles.trackingLine} role="status"><span>{activeRegion === null
               ? 'Active zone: —'
               : `Active zone: ${MOVEMENT_ZONE_NAMES[activeRegion]}`}</span></small> : null}
             {trackingState.kind === 'fallback' ? (
               <small className={styles.trackingWarning} role="alert">
-                Body tracking unavailable: {trackingState.reason} Camera motion tracking is still active.
+                {trackingState.reason}
               </small>
             ) : null}
-            <small className={styles.trackingLine} role="status"><span>Sound: {settings.muted ? 'Muted' : soundActive ? 'Active' : 'Waiting'}</span></small>
+            <small className={styles.trackingLine} role="status"><span>Sound: {settings.muted ? 'Muted' : gridMode ? grid.starting ? 'Starting' : !grid.sounding ? 'Off' : grid.activeCount ? `${grid.activeCount} active zones` : 'Ready · move to play' : soundActive ? 'Active' : 'Waiting'}</span></small>
+          </div>
+          <div className={styles.gridStart}>
+            <strong>Play with movement</strong>
+            <p>{gridMode ? 'Enable sound, then move through the camera grid. Each zone plays a different note.' : 'Enable sound to hear the selected material respond to movement.'}</p>
+            <Button variant="primary" disabled={!runtimeReady || (gridMode && grid.starting) || busy} onClick={toggleSound}>
+              {gridMode && grid.starting ? 'Starting sound…' : soundEnabled ? 'Mute sound' : 'Enable sound'}
+            </Button>
+            {gridMode && grid.error ? <small role="alert">{grid.error}</small> : null}
           </div>
           <div className={styles.controlGroupHeading} title="These controls affect the whole performance. The Inspector changes only the selected material.">
             <strong>Performance controls</strong><span aria-hidden="true">ⓘ</span>
@@ -439,17 +465,17 @@ export function PerformanceScreen() {
           <Slider label="Movement strength" description="Scales the tracked movement sent to both visual and sound materials. The stillness gate uses the original camera motion." value={settings.intensity} min={0} max={3} step={0.05} baseline={1} showValue onChange={(intensity) => change({ intensity })} />
           <Slider label="Volume" description="Overall output loudness for this performance; it does not change a material's character." value={settings.volume} min={0} max={1} step={0.01} baseline={0.7} showValue format={(v) => `${Math.round(v * 100)}%`} onChange={(volume) => change({ volume })} />
           <Slider label="Sensitivity" description="How strongly the camera tracker detects motion before material controls are applied." value={settings.sensitivity} min={0.2} max={2} step={0.05} baseline={1} showValue onChange={(sensitivity) => change({ sensitivity })} />
-          <Toggle label="Mute sound" checked={settings.muted} accent="water" onChange={(muted) => change({ muted })} />
           <Toggle label="Record original camera separately" checked={settings.recordSource} accent="honey" onChange={(recordSource) => change({ recordSource })} description="Applies when the next recording starts." />
         </aside>
-        <div className={styles.stage}>
+        <div className={styles.stage} ref={stagePanelRef}>
           <div className={styles.stageHeader}>
             <div>
               <span className={styles.eyebrow}>Live output</span>
               <strong>{getVisualMaterial(settings.visualId)?.meta.name ?? 'Visual'} response</strong>
-              <small>{getVisualMaterial(settings.visualId)?.meta.name} visual · {getSoundMaterial(settings.soundId)?.meta.name} sound</small>
+              <small>{getVisualMaterial(settings.visualId)?.meta.name} visual · {gridMode ? 'Sound Grid' : getSoundMaterial(settings.soundId)?.meta.name + ' sound'}</small>
             </div>
             <div className={styles.stageActions}>
+              <button type="button" className={styles.layoutButton} aria-pressed={cameraDocked} onClick={() => setCameraDocked((docked) => !docked)} title="Switch between an overlaid camera and a separate side-by-side preview">{cameraDocked ? 'Overlay camera' : 'Side by side'}</button>
               <button
                 type="button"
                 className={`${styles.openInspector} ${inspectorOpen ? styles.openInspectorHidden : ''}`}
@@ -458,14 +484,34 @@ export function PerformanceScreen() {
                 aria-expanded={inspectorOpen}
                 inert={inspectorOpen}
               >
-                Show visual controls
+                Show controls
               </button>
               <span className={styles.stageLive}><i aria-hidden="true" />{recording ? 'Recording' : 'Live'}</span>
             </div>
           </div>
-          <div ref={stageRef} className={styles.canvasHost} />
-          <div className={styles.stageLabel}>
-            {getVisualMaterial(settings.visualId)?.meta.name} · {getSoundMaterial(settings.soundId)?.meta.name}
+          <div className={styles.stageViewport}>
+            <div className={`${styles.previewGroup} ${cameraDocked ? styles.previewDocked : ''}`}>
+              <div ref={stageRef} className={styles.canvasHost}>
+                <div className={styles.stageLabel}>
+                  {getVisualMaterial(settings.visualId)?.meta.name} · {gridMode ? 'Sound Grid' : getSoundMaterial(settings.soundId)?.meta.name}
+                </div>
+              </div>
+              <div className={styles.camera} style={{ aspectRatio: cameraAspect }}>
+                <video
+                  ref={videoRef}
+                  style={{ opacity: gridMode && grid.shown && !grid.showCamera ? 0 : 1 }}
+                  autoPlay
+                  muted
+                  playsInline
+                  onLoadedMetadata={(event) => {
+                    const { videoWidth, videoHeight } = event.currentTarget;
+                    if (videoWidth && videoHeight) setCameraAspect(`${videoWidth} / ${videoHeight}`);
+                  }}
+                />
+                {gridMode ? (grid.shown ? <SoundGridCamera engine={grid.engine} source={videoRef} showCamera={grid.showCamera} overlayOnly className="integrated-sound-grid" /> : null) : showMovementZones ? <MovementZoneOverlay activeRegion={activeRegion} /> : null}
+                <span className={styles.cameraName} title={session.cameraName || 'Active camera'}>Live camera</span>
+              </div>
+            </div>
           </div>
         </div>
         <aside
@@ -476,24 +522,21 @@ export function PerformanceScreen() {
           inert={!inspectorOpen}
         >
           <div className={styles.inspectorHeading}>
-            <div><span className={styles.eyebrow}>Selected {editingVisual ? 'visual' : 'sound'} layer</span><h2>{editingVisual ? 'Visual material' : 'Sound material'}</h2></div>
+            <div><span className={styles.eyebrow}>Selected {editingVisual ? 'visual' : 'sound'} layer</span><h2>{editingVisual ? 'Visual material' : 'Sound controls'}</h2></div>
             <button type="button" className={styles.collapseInspector} onClick={() => setInspectorOpen(false)} aria-label="Hide material controls" title="Hide material controls">Hide panel ‹</button>
           </div>
           <div className={styles.trackingControls}>
-            <Toggle
-              label="Use body tracking"
-              checked={settings.bodyTrackingEnabled}
-              accent="water"
-              onChange={(bodyTrackingEnabled) => change({ bodyTrackingEnabled })}
-              description="Off uses camera motion without the body model."
-            />
-            <Toggle
+            <div className={styles.motionTrackingInfo}>
+              <strong>Motion Tracking</strong>
+              <small>Movement anywhere in the camera frame drives the response.</small>
+            </div>
+            {!gridMode ? <Toggle
               label="Show movement zones"
               checked={showMovementZones}
               accent="water"
               onChange={setShowMovementZones}
-              description="Highlight the strongest moving third of the camera image. This is not a body outline."
-            />
+              description="Highlight the region with the strongest motion in the camera image."
+            /> : null}
           </div>
           <SegmentedControl
             label="Material properties"
@@ -502,6 +545,8 @@ export function PerformanceScreen() {
             value={inspectorTab}
             onChange={setInspectorTab}
           />
+          {!editingVisual ? <SegmentedControl label="Sound source" options={['Sound Grid', 'Material']} value={gridMode ? 0 : 1} onChange={chooseSoundMode} /> : null}
+          {!editingVisual && gridMode ? <SoundGridPanel grid={grid} showStart={false} disabled={!runtimeReady || busy} /> : <>
           <p className={styles.inspectorHint} title="The left sliders affect the whole performance. These sliders shape only the selected visual or sound material.">
             {diagnosticVisual ? 'Showing the motion field for diagnostics.' : editingVisual ? 'Shape the current visual. Move to see the effect.' : 'Shape the current sound. Move or test it to hear the effect.'}
           </p>
@@ -543,11 +588,12 @@ export function PerformanceScreen() {
             </Button>
             {soundPreview.error ? <small role="alert">{soundPreview.error}</small> : null}
           </div> : null}
+          </>}
         </aside>
       </div>
       <footer className={styles.controls}>
         <Button
-          onClick={() => void stageRef.current?.parentElement?.requestFullscreen()}
+          onClick={() => void stagePanelRef.current?.requestFullscreen()}
           disabled={busy || !document.fullscreenEnabled}
         >
           Fullscreen

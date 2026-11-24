@@ -1,3 +1,4 @@
+import type { SoundGridSettings } from '../../live/soundGrid';
 import type { TimestampedSettingChange } from '../../engine/composition';
 import type { PropertyValues, VisualMapping } from '../../materials/types';
 import type { KineticSignature } from '../../signature/types';
@@ -14,6 +15,9 @@ export interface PerformanceSettings {
   muted: boolean;
   sensitivity: number;
   recordSource: boolean;
+  liveSoundSource?: 'grid' | 'material';
+  soundGrid?: SoundGridSettings;
+  usedSoundGrid?: boolean;
 }
 
 export interface ActivePerformanceSession {

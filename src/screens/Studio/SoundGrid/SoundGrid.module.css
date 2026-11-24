@@ -1,0 +1,150 @@
+/* Sound grid: camera with zones in the stage's top-right corner, and its panel section. */
+
+.camera {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  width: min(38%, 420px);
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* The screen's own small preview, while the grid stands in for it. Faded rather than
+   removed: the tracker reads frames from that video, and a hidden one may stop sending. */
+.previewBehindGrid {
+  opacity: 0;
+}
+
+.frame {
+  position: relative;
+  width: 100%;
+  max-height: 70vh;
+  overflow: hidden;
+  background: var(--color-surround);
+  border: 1px solid color-mix(in srgb, var(--color-water) 45%, transparent);
+  border-radius: var(--radius-md);
+}
+
+.video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.75;
+}
+
+.mirrored {
+  transform: scaleX(-1);
+}
+
+.zones {
+  position: absolute;
+  inset: 0;
+  display: grid;
+}
+
+.zone {
+  --level: 0;
+  position: relative;
+  border: 1px solid color-mix(in srgb, var(--color-pearl) 22%, transparent);
+  background: color-mix(in srgb, var(--color-water) calc(var(--level) * 55%), transparent);
+  transition: background-color 60ms linear;
+}
+
+.zone[data-active] {
+  border-color: color-mix(in srgb, var(--color-water) 85%, transparent);
+}
+
+.zone[data-flash='a'] {
+  animation: flashA 320ms ease-out;
+}
+
+.zone[data-flash='b'] {
+  animation: flashB 320ms ease-out;
+}
+
+@keyframes flashA {
+  from {
+    box-shadow: inset 0 0 0 3px var(--color-honey);
+  }
+  to {
+    box-shadow: inset 0 0 0 0 transparent;
+  }
+}
+
+@keyframes flashB {
+  from {
+    box-shadow: inset 0 0 0 3px var(--color-honey);
+  }
+  to {
+    box-shadow: inset 0 0 0 0 transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zone,
+  .zone[data-flash='a'],
+  .zone[data-flash='b'] {
+    animation: none;
+    transition: none;
+  }
+}
+
+.note {
+  position: absolute;
+  left: var(--space-1);
+  top: var(--space-1);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-deep) 70%, transparent);
+  color: var(--color-pearl);
+  font-size: var(--font-size-sm);
+  line-height: 1.3;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-strong);
+  color: var(--color-mist);
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-mist);
+}
+
+.error {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-alert);
+}
+
+@media (max-width: 900px) {
+  .camera {
+    width: min(50%, 320px);
+  }
+}
+
+/* Fill the existing redesigned camera panel, not a second floating preview. */
+.camera:global(.integrated-sound-grid) { inset: 0; width: 100%; height: 100%; max-width: none; }
+.camera:global(.integrated-sound-grid) .frame { width: 100%; height: 100%; max-height: none; border: 0; border-radius: 0; }
+.camera:global(.integrated-sound-grid) .note { font-size: 10px; }
+.panel { gap: 10px; min-width: 0; }
+.sectionHeading { font-size: 12px; font-weight: 700; margin: 8px 0 0; color: var(--color-pearl); border-top: 1px solid var(--color-silt); padding-top: 10px; }
+.status { color: var(--color-water); font-size: 12px; margin: 0; }
+.hint { line-height: 1.45; }
+.select { display: grid; gap: 4px; color: var(--color-mist); font-size: 12px; }
+.select select { width: 100%; color: var(--color-pearl); background: var(--color-basin-raised); border: 1px solid var(--color-silt); border-radius: 6px; padding: 7px 8px; font: inherit; }

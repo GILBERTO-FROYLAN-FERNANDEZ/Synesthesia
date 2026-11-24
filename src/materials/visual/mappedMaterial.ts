@@ -3,6 +3,7 @@ import type { SignatureFrame } from '../../signature/types';
 import { RipplesMaterial } from './ripples/RipplesMaterial';
 import { SampledMedium } from './lines/SampledMedium';
 import { LinesMaterial } from './lines/LinesMaterial';
+import { getWakeMaterial } from '../visualWake';
 
 /** Resolve the mapping at init, so preview, stills, and exports use the same renderer. */
 export function withVisualMapping(entry: VisualMaterialEntry): VisualMaterialEntry {
@@ -17,8 +18,11 @@ export function withVisualMapping(entry: VisualMaterialEntry): VisualMaterialEnt
         },
         async init(ctx: VisualContext) {
           renderer?.dispose();
+          const wake = ctx.mapping === 'wake' ? getWakeMaterial(entry.meta.id) : undefined;
           renderer =
-            ctx.mapping === 'sampled-displacement' && entry.meta.id !== 'signature'
+            wake
+              ? wake.create()
+              : ctx.mapping === 'sampled-displacement' && entry.meta.id !== 'signature'
               ? new SampledMedium(entry, true)
               : ctx.mapping === 'ripples' &&
                   entry.meta.id !== 'signature' &&

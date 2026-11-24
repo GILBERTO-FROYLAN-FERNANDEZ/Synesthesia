@@ -166,11 +166,12 @@ export function SessionReviewScreen() {
         <label>Performance name<input value={name} onChange={(event) => setName(event.target.value)} maxLength={500} /></label>
         <dl>
           <div><dt>Visual</dt><dd>{getVisualMaterial(session.settings.visualId)?.meta.name ?? session.settings.visualId}</dd></div>
-          <div><dt>Sound</dt><dd>{getSoundMaterial(session.settings.soundId)?.meta.name ?? session.settings.soundId}</dd></div>
+          <div><dt>Sound</dt><dd>{session.settings.liveSoundSource === 'grid' ? 'Sound Grid (live)' : getSoundMaterial(session.settings.soundId)?.meta.name ?? session.settings.soundId}</dd></div>
           <div><dt>Tracking</dt><dd>{session.signature.frameCount} real camera-derived frames</dd></div>
           <div><dt>Recording</dt><dd>{session.generated ? 'Generated audiovisual captured' : 'No generated video captured'}</dd></div>
         </dl>
       </div>
+      {session.settings.usedSoundGrid || session.settings.liveSoundSource === 'grid' ? <p className={styles.notice}>Sound Grid is a live instrument. The generated recording preserves the live sound if recording was enabled. An editable Studio composition uses its selected sound material instead; it does not recreate the live grid notes.</p> : null}
       <div className={styles.previews}>
         {session.generated ? <RecordingPreview part={session.generated} label="Generated audiovisual output" /> : <p className={styles.empty}>No generated recording exists. You can still save the genuinely captured motion signature and settings.</p>}
         {session.source ? <RecordingPreview part={session.source} label="Original camera reference" /> : null}

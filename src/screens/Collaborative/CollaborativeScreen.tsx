@@ -1,3 +1,6 @@
+import { useSoundGrid } from '../Studio/SoundGrid/useSoundGrid';
+import { SoundGridPanel } from '../Studio/SoundGrid/SoundGridPanel';
+import { SoundGridCamera } from '../Studio/SoundGrid/SoundGridCamera';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { navigate } from '../../app/router';
 import { listSoundMaterials, getVisualMaterial } from '../../materials/registry';
@@ -95,6 +98,10 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
   const camera = useCamera(videoRef);
   const [live, setLive] = useState(true);
   const [tab, setTab] = useState(0);
+  const tabRef = useRef(0);
+  const grid = useSoundGrid();
+  const { engine: gridEngine, setSounding: setGridSounding } = grid;
+  const gridMode = tab === 0;
   const [selectedRegion, setSelectedRegion] = useState(4);
   const [activeRegion, setActiveRegion] = useState<number | null>(null);
   const [assignments, setAssignments] = useState<string[]>([...PRESETS.default]);
@@ -134,6 +141,7 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
   intensityRef.current = intensity;
 
   const applyMappedRegion = useCallback((region: number | null) => {
+    if (tabRef.current === 0) return;
     const runtime = runtimeRef.current;
     mappedRegionRef.current = region;
     setActiveRegion(region);
@@ -143,7 +151,7 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
     if (!runtime || region === null) return;
     const materialId = assignmentsRef.current[region] ?? 'water';
     void runtime.setSound(materialId).then(() => {
-      if (token !== soundTokenRef.current || runtimeRef.current !== runtime) return;
+      if (token !== soundTokenRef.current || runtimeRef.current !== runtime || tabRef.current === 0) return;
       soundReadyRef.current = true;
       runtime.setMuted(mutedRef.current || manualModeRef.current);
     }).catch((caught: unknown) => {
@@ -183,7 +191,8 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
         canvas = document.createElement('canvas');
         canvas.setAttribute('aria-label', 'Live movement-driven collaborative visual');
         liveCanvasHostRef.current.append(canvas);
-        runtime = new LivePerformanceRuntime(videoRef.current, canvas, camera.stream);
+        runtime = new LivePerformanceRuntime(videoRef.current, canvas, camera.stream, gridEngine);
+        runtime.setGridMode(tabRef.current === 0);
         const current = runtime;
         runtimeRef.current = current;
         current.onTrackingState = (state) => {
@@ -193,7 +202,7 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
           if (disposed) return;
           const energy = Math.min(1, Math.max(0, frame.features.energy * 5));
           setMotionEnergy(energy);
-          if (manualModeRef.current) return;
+          if (tabRef.current === 0 || manualModeRef.current) return;
           const region = motionRegion(frame);
           if (region === mappedRegionRef.current) {
             candidateRef.current = null;
@@ -212,7 +221,7 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
           soundId: assignmentsRef.current[4] ?? 'water',
           intensity: intensityRef.current,
           volume: volumeRef.current / 100,
-          muted: true,
+          muted: tabRef.current === 0 ? mutedRef.current : true,
           sensitivity: 1,
         });
         if (disposed) return;
@@ -220,6 +229,7 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
         setVisualNotice(visual.fallbackFrom
           ? `${getVisualMaterial(visual.fallbackFrom)?.meta.name ?? 'Water'} needs a graphics feature this device lacks. Showing ${getVisualMaterial(visual.id)?.meta.name ?? visual.id} instead.`
           : null);
+        current.setMuted(tabRef.current === 0 ? mutedRef.current : true);
         setRuntimeReady(true);
       } catch (caught) {
         if (disposed) return;
@@ -235,6 +245,7 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
     void start();
     return () => {
       disposed = true;
+      gridEngine.dispose();
       if (runtime) {
         runtime.onMotion = null;
         runtime.onTrackingState = null;
@@ -243,7 +254,9 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
       canvas?.remove();
       runtimeRef.current = null;
     };
-  }, [applyMappedRegion, camera.stream, live]);
+  }, [applyMappedRegion, camera.stream, live, gridEngine]);
+
+  useEffect(() => { if (!camera.stream) { setGridSounding(false); setRuntimeReady(false); } }, [camera.stream, setGridSounding]);
 
   useEffect(() => {
     runtimeRef.current?.setVolume(volume / 100);
@@ -254,15 +267,15 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
   }, [intensity]);
 
   useEffect(() => {
-    runtimeRef.current?.setMuted(muted || manualMode || !soundReadyRef.current);
-  }, [muted, manualMode]);
+    runtimeRef.current?.setMuted(muted || (!gridMode && (manualMode || !soundReadyRef.current)));
+  }, [muted, manualMode, gridMode]);
 
   useEffect(() => {
     candidateRef.current = null;
     mappedRegionRef.current = null;
     soundTokenRef.current++;
     soundReadyRef.current = false;
-    runtimeRef.current?.setMuted(true);
+    if (tabRef.current !== 0) runtimeRef.current?.setMuted(true);
     setActiveRegion(null);
     if (!manualMode) void stopManualSound();
   }, [manualMode, stopManualSound]);
@@ -308,8 +321,27 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
     setPreset(basePreset);
   };
 
+  const chooseTab = (next: number) => {
+    const wasGrid = tabRef.current === 0;
+    tabRef.current = next;
+    setTab(next);
+    if (wasGrid === (next === 0)) return;
+    soundTokenRef.current++;
+    soundReadyRef.current = false;
+    mappedRegionRef.current = null;
+    candidateRef.current = null;
+    setActiveRegion(null);
+    if (activeTimer.current !== null) { window.clearTimeout(activeTimer.current); activeTimer.current = null; }
+    if (next === 0) void stopManualSound();
+    else setGridSounding(false);
+    runtimeRef.current?.setGridMode(next === 0);
+    runtimeRef.current?.setMuted(next === 0 ? mutedRef.current : true);
+  };
+
   const stopPerformance = async () => {
     setLive(false);
+    setGridSounding(false);
+    gridEngine.dispose();
     setActiveRegion(null);
     if (activeTimer.current !== null) {
       window.clearTimeout(activeTimer.current);
@@ -367,6 +399,7 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
           >
             <video
               ref={videoRef}
+              style={{ opacity: gridMode && grid.shown && !grid.showCamera ? 0 : 1 }}
               autoPlay
               muted
               playsInline
@@ -375,9 +408,7 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
                 if (videoWidth && videoHeight) setCameraAspect(`${videoWidth} / ${videoHeight}`);
               }}
             />
-            {camera.state === 'connected' && showMovementZones
-              ? <MovementZoneOverlay activeRegion={manualMode ? null : activeRegion} />
-              : null}
+            {camera.state === 'connected' ? gridMode ? (grid.shown ? <SoundGridCamera engine={gridEngine} source={videoRef} showCamera={grid.showCamera} overlayOnly className="integrated-sound-grid" /> : null) : showMovementZones ? <MovementZoneOverlay activeRegion={manualMode ? null : activeRegion} /> : null : null}
             {camera.state === 'connected' ? null : (
               <div className={styles.cameraEmpty}>
                 <span className={styles.cameraGlyph} aria-hidden="true" />
@@ -419,17 +450,18 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
           />
           <p className={styles.trackingNote}>
             {camera.state !== 'connected' ? 'Enable the camera to connect live movement tracking.' :
+              gridMode ? !grid.sounding ? 'Ask the collaborator to enable sound, then move across the camera grid.' : grid.activeCount ? `${grid.activeCount} moving zones · each plays its own note.` : 'Move through a zone to play its note.' :
               manualMode ? 'Manual test mode is on. Turn it off for automatic region responses.' :
                 activeRegion === null ? 'Move in front of the camera to activate a sound region.' :
                   `Movement is activating ${REGION_NAMES[activeRegion]}.`}
           </p>
-          <Toggle
+          {!gridMode ? <Toggle
             label="Show camera movement zones"
             checked={showMovementZones}
             accent="water"
             onChange={setShowMovementZones}
             description="The cyan cell marks the strongest camera movement. It is not a body outline."
-          />
+          /> : null}
           {camera.state === 'connected' && trackingState?.kind === 'fallback' ? (
             <p className={styles.trackingError} role="alert">
               Body tracking unavailable: {trackingState.reason} Camera motion tracking is still active.
@@ -493,12 +525,12 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
             <div className={styles.outputStatus}>
               <span>{live ? runtimeReady ? 'Live camera response' : 'Ambient preview' : 'Stopped'}</span>
               <strong>
-                {activeRegion === null
+                {gridMode ? !grid.sounding ? 'Sound Grid · off' : muted ? 'Sound Grid · muted' : `${grid.activeCount} moving zones` : activeRegion === null
                   ? camera.state === 'connected' ? 'Waiting for movement' : 'Camera not connected'
                   : `${REGION_NAMES[activeRegion]} · ${activeMaterial?.meta.name ?? 'Water'}`}
               </strong>
             </div>
-            {activeRegion === null ? null : (
+            {gridMode || activeRegion === null ? null : (
               <div
                 className={styles.regionPulse}
                 data-region={activeRegion}
@@ -507,7 +539,7 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
             )}
           </div>
           <p className={styles.outputNote}>
-            {visualNotice ?? 'Performer movement drives this visual and activates the sound mapped to each grid region.'}
+            {visualNotice ?? (gridMode ? 'Performer movement drives the visual and plays multiple independent grid notes. The collaborator shapes the instrument.' : 'Performer movement drives this visual and activates the sound mapped to each grid region.')}
           </p>
         </main>
 
@@ -522,13 +554,21 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
           <SegmentedControl
             label="Collaborator controls"
             hideLabel
-            options={['Mapping Grid', 'Sound Mix']}
+            options={['Sound Grid', 'Material Mapping', 'Material Mix']}
             value={tab}
-            onChange={setTab}
+            onChange={chooseTab}
+            disabled={!live}
           />
 
-          {tab === 0 ? (
+          {gridMode ? (
+            <>
+              {!runtimeReady && live ? <p className={styles.trackingNote}>Enable the camera on the left to start live movement sound.</p> : null}
+              <SoundGridPanel grid={grid} disabled={!live || !runtimeReady} />
+              <Toggle label="Mute master sound" checked={muted} accent="water" onChange={setMuted} disabled={!live} />
+            </>
+          ) : tab === 1 ? (
             <div className={styles.mappingTab}>
+              <p className={styles.trackingNote}>Legacy material mapping: plays one region at a time. Choose Sound Grid for simultaneous notes.</p>
               <div className={styles.manualMode}>
                 <Toggle
                   label="Manual test mode"
@@ -633,7 +673,7 @@ export function CollaborativeScreen({ returnStudioId }: CollaborativeScreenProps
               </p>
             </div>
           )}
-          {sound.error ? <p className={styles.soundError} role="alert">{sound.error}</p> : null}
+          {!gridMode && sound.error ? <p className={styles.soundError} role="alert">{sound.error}</p> : null}
           {!live ? (
             <section className={styles.sessionSummary} aria-labelledby="session-summary-title">
               <span className={styles.eyebrow}>Session stopped</span>

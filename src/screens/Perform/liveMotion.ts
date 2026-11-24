@@ -2,6 +2,8 @@ import { assembleSignature } from '../../signature/assemble';
 import { computeFeatures, spatialFeatures } from '../../signature/features';
 import { finalizeSignature } from '../../library/signatures';
 import { DEFAULT_FARNEBACK, FEATURE_NAMES, type SignatureFrame } from '../../signature/types';
+import { trackLiveVideo } from '../../signature/live';
+import { floorFromSensitivity } from '../Prepare/sensitivity';
 import { trackLiveBodyTrackingVideo } from '../../signature/liveBodyTracking';
 
 const WIDTH = 160;
@@ -62,7 +64,10 @@ export class LiveMotionTracker {
   private current: SignatureFrame;
   private stopBodyTracking: (() => void) | null = null;
   private bodyTimeout = 0;
-  private mode: 'body' | 'block' = 'block';
+  private mode: 'body' | 'block' | 'flow' = 'block';
+  private stopFlow: (() => void) | null = null;
+  private flowTimeout = 0;
+  private flowFrames = 0;
   private running = false;
   private bodyTrackingEnabled = true;
   private bodyFrames = 0;
@@ -102,9 +107,10 @@ export class LiveMotionTracker {
     this.captureStarted = performance.now();
     this.lastCapture = 0;
     this.mode = 'block';
-    this.raf = requestAnimationFrame(this.tick);
-    if (bodyTrackingEnabled) this.startBodyTracking();
-    else this.onTrackingState?.({ kind: 'camera' });
+    if (bodyTrackingEnabled) {
+      this.raf = requestAnimationFrame(this.tick);
+      this.startBodyTracking();
+    } else this.startFlowTracking();
   }
 
   setBodyTrackingEnabled(enabled: boolean): void {
@@ -112,14 +118,58 @@ export class LiveMotionTracker {
     this.bodyTrackingEnabled = enabled;
     if (!this.running) return;
     if (enabled) {
+      this.stopFlowTracking();
+      this.activateBlockTracker();
       this.startBodyTracking();
       return;
     }
     window.clearTimeout(this.bodyTimeout);
     this.stopBodyTracking?.();
     this.stopBodyTracking = null;
-    this.activateBlockTracker();
-    this.onTrackingState?.({ kind: 'camera' });
+    this.startFlowTracking();
+  }
+
+  private stopFlowTracking(): void {
+    window.clearTimeout(this.flowTimeout);
+    this.stopFlow?.();
+    this.stopFlow = null;
+  }
+
+  private startFlowTracking(): void {
+    cancelAnimationFrame(this.raf);
+    this.stopFlowTracking();
+    this.mode = 'flow';
+    this.onTrackingState?.({ kind: 'loading' });
+    let receivedFlow = false;
+    const fallback = () => {
+      if (!this.running || this.mode !== 'flow') return;
+      this.stopFlowTracking();
+      this.activateBlockTracker();
+      this.onTrackingState?.({ kind: 'fallback', reason: 'Optical flow is unavailable. Using basic camera motion tracking.' });
+    };
+    try {
+      this.stopFlow = trackLiveVideo(
+        this.video,
+        () => floorFromSensitivity(this.sensitivity / 2),
+        (frame) => {
+          if (!this.running || this.mode !== 'flow') return;
+          if (!receivedFlow) {
+            receivedFlow = true;
+            this.onTrackingState?.({ kind: 'camera' });
+          }
+          this.flowFrames++;
+          window.clearTimeout(this.flowTimeout);
+          this.flowTimeout = window.setTimeout(fallback, 8_000);
+          this.current = { ...frame, t: (performance.now() - this.captureStarted) / 1000 };
+          this.captureField(this.resampleField(frame), this.current.t);
+          this.onFrame?.(this.current);
+        },
+        fallback,
+      );
+      this.flowTimeout = window.setTimeout(fallback, 15_000);
+    } catch {
+      fallback();
+    }
   }
 
   private startBodyTracking(): void {
@@ -159,6 +209,7 @@ export class LiveMotionTracker {
 
   stop(): void {
     this.running = false;
+    this.stopFlowTracking();
     cancelAnimationFrame(this.raf);
     window.clearTimeout(this.bodyTimeout);
     this.stopBodyTracking?.();
@@ -191,7 +242,7 @@ export class LiveMotionTracker {
       },
       preferredSpeed: 1,
       options: { noiseFloorMode: 'manual', farneback: DEFAULT_FARNEBACK },
-      method: this.bodyFrames > 0 ? 'farneback' : 'block-matching',
+      method: this.bodyFrames > 0 || this.flowFrames > 0 ? 'farneback' : 'block-matching',
       analysisWidth: WIDTH,
       temporalSmoothingFrames: 1,
       noiseFloor: 0.002,

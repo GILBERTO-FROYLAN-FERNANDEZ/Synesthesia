@@ -63,7 +63,6 @@ export function CameraSetupScreen() {
   const [soundId, setSoundId] = useState(DEFAULT_SOUND_ID);
   const [visualId, setVisualId] = useState(DEFAULT_VISUAL_ID);
   const [muted, setMuted] = useState(false);
-  const [bodyTrackingEnabled, setBodyTrackingEnabled] = useState(true);
   const [volume, setVolume] = useState(70);
   const [soundState, setSoundState] = useState<SoundState>('idle');
   const [soundError, setSoundError] = useState<string | null>(null);
@@ -171,7 +170,7 @@ export function CameraSetupScreen() {
       soundId,
       visualProperties: baselineValues(visualMaterials.find(({ meta }) => meta.id === visualId)?.meta.properties ?? []),
       soundProperties: baselineValues(getSoundMaterial(soundId)?.meta.properties ?? []),
-      bodyTrackingEnabled,
+      bodyTrackingEnabled: false,
       intensity: 1,
       volume: volume / 100,
       muted,
@@ -186,7 +185,7 @@ export function CameraSetupScreen() {
       <header className={styles.intro}>
         <span className={styles.eyebrow}>Perform</span>
         <h1 id="camera-setup-title">Camera Setup</h1>
-        <p>Prepare your camera and sound before entering a performance workspace.</p>
+        <p>Prepare your camera before entering a performance workspace. Sound Grid is the default live instrument; enable it in the workspace. The sound material preview below is for the optional Material mode.</p>
       </header>
 
       <section className={styles.cameraPanel} aria-labelledby="camera-preview-title">
@@ -360,15 +359,10 @@ export function CameraSetupScreen() {
         )}
         <div className={styles.trackingSetup}>
           <div>
-            <strong>Body tracking</strong>
-            <small>Focus motion tracking on the performer. When off, movement anywhere in the camera image can drive the response.</small>
+            <strong>Motion Tracking</strong>
+            <small>Tracks movement across the entire camera image, including people, objects, and materials. No human pose is required.</small>
           </div>
-          <Toggle
-            label="Use body tracking"
-            checked={bodyTrackingEnabled}
-            accent="water"
-            onChange={setBodyTrackingEnabled}
-          />
+          <span className={styles.trackingMode}>Full frame</span>
         </div>
       </section>
 

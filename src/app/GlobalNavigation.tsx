@@ -54,7 +54,7 @@ export function GlobalNavigation({ current }: { current: string }) {
       label: 'Studio',
       title: 'Open Studio compositions',
     },
-    { id: 'collaborate', path: '/collaborative', label: 'Collaborate' },
+    { id: 'collaborate', path: '/collaborative', label: 'Collaborate', title: 'Under development — concept preview only' },
   ];
 
   useEffect(() => {
@@ -124,6 +124,7 @@ export function GlobalNavigation({ current }: { current: string }) {
                 <a
                   href={href(item.path)}
                   title={item.title}
+                  className={item.id === 'collaborate' ? styles.previewLink : undefined}
                   aria-current={active === item.id ? 'page' : undefined}
                   onClick={(event) => {
                     setOpenAt(null);
@@ -140,6 +141,7 @@ export function GlobalNavigation({ current }: { current: string }) {
                   }}
                 >
                   {item.label}
+                  {item.id === 'collaborate' ? <span className={styles.previewTag} aria-hidden="true">Soon</span> : null}
                 </a>
               </li>
             ))}

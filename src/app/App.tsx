@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { AlbumScreen } from '../screens/Album/AlbumScreen';
 import { NewAlbumScreen } from '../screens/Album/NewAlbumScreen';
-import { CollaborativeScreen } from '../screens/Collaborative/CollaborativeScreen';
+import { CollaborationPreviewScreen } from '../screens/Collaborative/CollaborationPreviewScreen';
 import { DiagnosticsScreen } from '../screens/Diagnostics/DiagnosticsScreen';
 import { GuideScreen } from '../screens/Guide/GuideScreen';
 import { HelpScreen } from '../screens/Help/HelpScreen';
@@ -38,10 +38,10 @@ interface RouteDef {
  */
 const ROUTES: RouteDef[] = [
   { pattern: '/', render: () => <LibraryScreen /> },
-  { pattern: '/collaborative', render: () => <CollaborativeScreen /> },
+  { pattern: '/collaborative', render: () => <CollaborationPreviewScreen /> },
   {
     pattern: '/collaborative/:compositionId',
-    render: (params) => <CollaborativeScreen returnStudioId={params.compositionId} />,
+    render: () => <CollaborationPreviewScreen />,
   },
   { pattern: '/perform', render: () => <CameraSetupScreen /> },
   { pattern: '/perform/live', render: () => <PerformanceScreen /> },

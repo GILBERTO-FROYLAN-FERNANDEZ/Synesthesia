@@ -169,3 +169,16 @@
     padding-inline: var(--space-3);
   }
 }
+
+/* Preview is navigable, but intentionally quieter than released workflows. */
+.list a.previewLink:not([aria-current='page']) { color: var(--color-mist); opacity: 0.75; }
+.list a.previewLink:hover, .list a.previewLink:focus-visible { opacity: 1; }
+.previewTag {
+  margin-left: 6px;
+  padding: 2px 5px;
+  border: 1px solid color-mix(in srgb, var(--color-mist) 38%, transparent);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--color-mist);
+}

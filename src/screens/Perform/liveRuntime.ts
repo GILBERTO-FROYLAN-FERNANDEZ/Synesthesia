@@ -1,3 +1,4 @@
+import type { SoundGridEngine } from '../../live/soundGrid';
 import { AudioEngine } from '../../engine/audio/AudioEngine';
 import { soundSeed, visualRng, visualSeed } from '../../engine/seeds';
 import { baselineValues } from '../../materials/properties';
@@ -106,6 +107,11 @@ export class LivePerformanceRuntime {
   private readonly sampler: LiveSampler;
   private readonly output: GainNode;
   private readonly activityGain: GainNode;
+  private readonly gridGain: GainNode;
+  private gridMode = false;
+  private started = false;
+  private muted = false;
+  private volume = 0.7;
   private readonly activity = new LiveMotionActivity();
   private sensitivity = 1;
   private audible = false;
@@ -127,7 +133,7 @@ export class LivePerformanceRuntime {
   onActivity: ((active: boolean) => void) | null = null;
   onTrackingState: ((state: LiveTrackingState) => void) | null = null;
 
-  constructor(video: HTMLVideoElement, canvas: HTMLCanvasElement, cameraStream: MediaStream) {
+  constructor(video: HTMLVideoElement, canvas: HTMLCanvasElement, cameraStream: MediaStream, grid?: SoundGridEngine) {
     this.cameraStream = cameraStream;
     this.canvas = canvas;
     this.canvas.width = 1280;
@@ -137,6 +143,11 @@ export class LivePerformanceRuntime {
     this.gl = gl;
     this.context = new AudioContext({ sampleRate: 48_000, latencyHint: 'interactive' });
     this.audioDestination = this.context.createMediaStreamDestination();
+    this.gridGain = this.context.createGain();
+    this.gridGain.gain.value = 0;
+    this.gridGain.connect(this.context.destination);
+    this.gridGain.connect(this.audioDestination);
+    grid?.bindOutput(this.context, this.gridGain);
     this.output = this.context.createGain();
     this.activityGain = this.context.createGain();
     this.activityGain.gain.value = 0;
@@ -148,6 +159,7 @@ export class LivePerformanceRuntime {
     this.sampler = new LiveSampler(this.tracker.latest);
     this.tracker.onFrame = (frame) => {
       this.sampler.frame = scaledMotionFrame(frame, this.intensity);
+      grid?.update(this.sampler.frame);
       this.audio.timelineChanged();
       this.updateActivity(this.activity.update(frame.features.energy, performance.now(), this.sensitivity));
       this.onMotion?.(frame);
@@ -188,7 +200,9 @@ export class LivePerformanceRuntime {
     if (this.stopped) return visual;
     this.setMuted(options.muted);
     this.tracker.start(options.bodyTrackingEnabled ?? true);
-    await this.audio.play(0);
+    this.started = true;
+    // The grid starts from an explicit user gesture. Do not block visual startup on autoplay.
+    if (!this.gridMode) void this.audio.play(0).catch(() => undefined);
     this.raf = requestAnimationFrame(this.draw);
     return visual;
   }
@@ -265,14 +279,30 @@ export class LivePerformanceRuntime {
     this.audio.timelineChanged();
   }
   setVolume(value: number): void {
+    this.volume = Math.max(0, Math.min(1, value));
+    this.updateGridGain();
     this.output.gain.setTargetAtTime(
-      Math.max(0, Math.min(1, value)),
+      this.volume,
       this.context.currentTime,
       0.015,
     );
   }
   setMuted(value: boolean): void {
-    this.audio.setMuted(value);
+    this.muted = value;
+    this.audio.setMuted(value || this.gridMode);
+    this.updateGridGain();
+  }
+  setGridMode(enabled: boolean): void {
+    if (this.gridMode === enabled) return;
+    this.gridMode = enabled;
+    this.setMuted(this.muted);
+    if (this.started && !this.stopped) {
+      if (enabled) this.audio.pause();
+      else void this.audio.play().catch(() => undefined);
+    }
+  }
+  private updateGridGain(): void {
+    this.gridGain.gain.setTargetAtTime(this.gridMode && !this.muted ? this.volume : 0, this.context.currentTime, 0.015);
   }
   setSensitivity(value: number): void {
     this.sensitivity = value;
@@ -357,6 +387,7 @@ export class LivePerformanceRuntime {
     this.visual = null;
     this.output.disconnect();
     this.activityGain.disconnect();
+    this.gridGain.disconnect();
     await this.context.close().catch(() => undefined);
     releaseVisualContext(this.gl);
   }

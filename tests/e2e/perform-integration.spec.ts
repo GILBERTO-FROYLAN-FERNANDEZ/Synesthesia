@@ -23,12 +23,13 @@ test('live camera recording becomes an editable Library composition', async ({ p
   await page.getByRole('button', { name: 'Enable Camera' }).click();
   await expect(page.getByRole('button', { name: /Start Performance/ })).toBeEnabled();
   await page.getByRole('button', { name: /Start Performance/ }).click();
-  await expect(page.getByText(/(?:Body|Camera motion) tracking live/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('Motion tracking live')).toBeVisible({ timeout: 30_000 });
   await page.getByRole('button', { name: /^Trail Leave a path/ }).click();
   await expect(page.getByRole('button', { name: /^Trail Leave a path/ })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: /^Ripple Make waves/ }).click();
   await expect(page.getByRole('button', { name: /^Ripple Make waves/ })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('radiogroup', { name: 'Material properties' }).getByRole('radio', { name: 'Sound' }).click();
+  await page.getByRole('radiogroup', { name: 'Sound source' }).getByRole('radio', { name: 'Material', exact: true }).click();
   const viscosity = page.getByRole('group', { name: 'Water sound properties' })
     .getByRole('slider', { name: 'Viscosity' });
   await viscosity.press('ArrowRight');

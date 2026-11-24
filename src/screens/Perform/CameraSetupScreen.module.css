@@ -387,3 +387,12 @@
     aspect-ratio: auto;
   }
 }
+
+.trackingMode {
+  flex-shrink: 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid color-mix(in srgb, var(--color-water) 40%, transparent);
+  border-radius: var(--radius-sm);
+  color: var(--color-water);
+  font-size: var(--font-size-sm);
+}

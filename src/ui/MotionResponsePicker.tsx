@@ -5,7 +5,7 @@ export type MotionResponse = 'push' | 'trail' | 'ripple';
 
 const RESPONSES: readonly { id: MotionResponse; label: string; description: string }[] = [
   { id: 'push', label: 'Push', description: "Move what's there" },
-  { id: 'trail', label: 'Trail', description: 'Leave a path' },
+  { id: 'trail', label: 'Trail', description: 'Leave a flowing wake' },
   { id: 'ripple', label: 'Ripple', description: 'Make waves' },
 ];
 
@@ -16,7 +16,7 @@ export function responseForMapping(mapping?: VisualMapping): MotionResponse {
 }
 
 export function mappingForResponse(response: MotionResponse): VisualMapping {
-  return response === 'trail' ? 'lines' : response === 'ripple' ? 'ripples' : 'displacement';
+  return response === 'trail' ? 'wake' : response === 'ripple' ? 'ripples' : 'displacement';
 }
 
 export function responseAvailable(response: MotionResponse, materialId: string): boolean {
